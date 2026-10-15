@@ -37,6 +37,38 @@ describe("eddy-hook", () => {
     assert.equal(record.endReason, "");
   });
 
+  it("marque la session remplacée comme vidée quand une nouvelle démarre après /clear", () => {
+    const stateDirectory = makeStateDirectory();
+    runHook("prompt", { session_id: "old", cwd: "/projet", prompt: "Corrige le login" }, stateDirectory);
+    runHook("start", { session_id: "new", cwd: "/projet", source: "clear" }, stateDirectory);
+    const replaced = readRecord(stateDirectory, "old");
+    assert.equal(replaced.state, "ended");
+    assert.equal(replaced.endReason, "clear");
+    assert.equal(replaced.title, "Corrige le login");
+    assert.equal(readRecord(stateDirectory, "new").state, "idle");
+  });
+
+  it("ne vide que la session la plus récente du même dossier", () => {
+    const stateDirectory = makeStateDirectory();
+    runHook("prompt", { session_id: "elsewhere", cwd: "/autre", prompt: "Autre projet" }, stateDirectory);
+    runHook("prompt", { session_id: "older", cwd: "/projet", prompt: "Ancienne" }, stateDirectory);
+    runHook("prompt", { session_id: "latest", cwd: "/projet", prompt: "Récente" }, stateDirectory);
+    runHook("start", { session_id: "new", cwd: "/projet", source: "clear" }, stateDirectory);
+    assert.equal(readRecord(stateDirectory, "latest").endReason, "clear");
+    assert.equal(readRecord(stateDirectory, "older").state, "working");
+    assert.equal(readRecord(stateDirectory, "elsewhere").state, "working");
+  });
+
+  it("laisse tranquille une session déjà terminée et un démarrage ordinaire", () => {
+    const stateDirectory = makeStateDirectory();
+    runHook("prompt", { session_id: "live", cwd: "/projet", prompt: "En cours" }, stateDirectory);
+    runHook("start", { session_id: "resumed", cwd: "/projet", source: "resume" }, stateDirectory);
+    assert.equal(readRecord(stateDirectory, "live").state, "working");
+    runHook("end", { session_id: "live", cwd: "/projet", reason: "other" }, stateDirectory);
+    runHook("start", { session_id: "new", cwd: "/projet", source: "clear" }, stateDirectory);
+    assert.equal(readRecord(stateDirectory, "live").endReason, "other");
+  });
+
   it("n'écrit rien sans identifiant de session", () => {
     const stateDirectory = makeStateDirectory();
     runHook("end", { reason: "clear" }, stateDirectory);

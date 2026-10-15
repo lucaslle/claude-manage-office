@@ -9,6 +9,7 @@ const AGENT_TOOL_NAMES = new Set(["Task", "Agent"]);
 const TITLE_LENGTH = 70;
 const MESSAGE_LENGTH = 320;
 const AGENT_LABEL_LENGTH = 60;
+const REPLACED_SESSION_MAX_AGE_MS = 3600000;
 
 const stateDirectory = () => process.env.EDDY_STATE_DIR ?? path.join(os.homedir(), ".claude", "eddy-office", "sessions");
 
@@ -29,6 +30,28 @@ const readPrevious = (filePath) => {
   } catch {
     return null;
   }
+};
+
+const writeRecord = (filePath, record) => {
+  const temporaryPath = `${filePath}.tmp`;
+  fs.writeFileSync(temporaryPath, JSON.stringify(record));
+  fs.renameSync(temporaryPath, filePath);
+};
+
+const readRecords = (directory) =>
+  fs
+    .readdirSync(directory)
+    .filter((fileName) => fileName.endsWith(".json"))
+    .map((fileName) => readPrevious(path.join(directory, fileName)))
+    .filter((record) => record && record.sessionId);
+
+const markReplacedSessionCleared = (directory, record, now) => {
+  if (!record.cwd) return;
+  const replaced = readRecords(directory)
+    .filter((known) => known.sessionId !== record.sessionId && known.state !== "ended" && known.cwd === record.cwd && now - known.updatedAt <= REPLACED_SESSION_MAX_AGE_MS)
+    .sort((first, second) => second.updatedAt - first.updatedAt)[0];
+  if (!replaced) return;
+  writeRecord(path.join(directory, `${replaced.sessionId}.json`), { ...replaced, state: "ended", endReason: "clear", activity: "", subagents: [], updatedAt: now });
 };
 
 const currentBranch = (workingDirectory) => {
@@ -122,9 +145,8 @@ const run = async () => {
     updatedAt: now,
   };
 
-  const temporaryPath = `${filePath}.tmp`;
-  fs.writeFileSync(temporaryPath, JSON.stringify(record));
-  fs.renameSync(temporaryPath, filePath);
+  writeRecord(filePath, record);
+  if (mode === "start" && payload.source === "clear") markReplacedSessionCleared(directory, record, now);
 };
 
 run().catch(() => {});
