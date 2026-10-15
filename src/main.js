@@ -8,6 +8,11 @@ import { createRenderPipeline } from "./postfx.js";
 import { createUi } from "./ui.js";
 import { fetchLiveState, subscribeLive } from "./live.js";
 import { CHARACTERS } from "./data.js";
+import { initTheme, isDarkTheme } from "./theme.js";
+import { createUsagePanel } from "./usage.js";
+import { createConnectorsPanel } from "./connectors.js";
+import { createHud } from "./hud.js";
+import { createSessionModal } from "./session-modal.js";
 
 const SLOW_FRAME_SECONDS = 0.03;
 const SLOW_FRAME_WINDOW = 120;
@@ -18,8 +23,7 @@ const MIN_HOME_DISTANCE = 40;
 const MAX_HOME_DISTANCE = 95;
 
 const stage = document.getElementById("stage");
-const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
-const backgroundColor = () => new THREE.Color(darkQuery.matches ? "#2a3544" : "#e3e9f1");
+const backgroundColor = () => new THREE.Color(isDarkTheme() ? "#2a3544" : "#e3e9f1");
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.shadowMap.enabled = true;
@@ -33,10 +37,13 @@ labelRenderer.domElement.className = "stage__labels";
 stage.append(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = backgroundColor();
-darkQuery.addEventListener("change", () => {
-  scene.background = backgroundColor();
+initTheme({
+  toggleButton: document.getElementById("theme-toggle"),
+  onChange: () => {
+    scene.background = backgroundColor();
+  },
 });
+scene.background = backgroundColor();
 const environmentGenerator = new THREE.PMREMGenerator(renderer);
 scene.environment = environmentGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.4;
@@ -96,7 +103,16 @@ resize();
 
 const [world, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
 const crowd = createCharacters({ scene, models });
-const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: world.setRoomOverflow });
+const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta") });
+const connectorsPanel = createConnectorsPanel({
+  body: document.getElementById("connectors-body"),
+  selector: document.getElementById("connectors-selector"),
+  chooseButton: document.getElementById("connectors-choose"),
+});
+const hud = createHud(document.getElementById("hud"));
+const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: world.setRoomOverflow, usagePanel, connectorsPanel, hud });
+
+const sessionModal = createSessionModal({ isLive: ui.isLive });
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -125,7 +141,10 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
 renderer.domElement.addEventListener("pointerup", (event) => {
   if (Math.abs(event.clientX - pressX) + Math.abs(event.clientY - pressY) > 6) return;
   const key = pickKey(event);
-  if (key) ui.select(key);
+  if (!key) return;
+  ui.select(key);
+  const state = crowd.describe(key);
+  if (state) sessionModal.open({ spec: state.spec, room: state.target ?? state.room });
 });
 let hoverPending = false;
 renderer.domElement.addEventListener("pointermove", (event) => {

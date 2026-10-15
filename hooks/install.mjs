@@ -14,11 +14,18 @@ const EVENT_HOOKS = [
   { event: "SubagentStop", mode: "agent-stop" },
 ];
 
-const hookScriptPath = path.join(path.dirname(fileURLToPath(import.meta.url)), MARKER).replace(/\\/g, "/");
+const STATUSLINE_MARKER = "eddy-statusline.mjs";
+
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const hookScriptPath = path.join(scriptDirectory, MARKER).replace(/\\/g, "/");
+const statuslineScriptPath = path.join(scriptDirectory, STATUSLINE_MARKER).replace(/\\/g, "/");
 const nodeCommand = process.platform === "win32" ? "node" : `"${process.execPath}"`;
 const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
 const removeOnly = process.argv.includes("--remove");
 const dryRun = process.argv.includes("--dry-run");
+const withStatusline = process.argv.includes("--statusline");
+
+const ownsStatusline = (config) => String(config?.command ?? "").includes(STATUSLINE_MARKER);
 
 const readSettings = () => {
   if (!fs.existsSync(settingsPath)) return {};
@@ -42,6 +49,15 @@ EVENT_HOOKS.forEach(({ event, mode, matcher }) => {
   else delete settings.hooks[event];
 });
 if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+if (removeOnly && ownsStatusline(settings.statusLine)) delete settings.statusLine;
+if (withStatusline && !removeOnly) {
+  if (settings.statusLine && !ownsStatusline(settings.statusLine)) {
+    process.stderr.write("Une ligne d'état existe déjà dans vos réglages : elle n'est pas modifiée.\n");
+  } else {
+    settings.statusLine = { type: "command", command: `${nodeCommand} "${statuslineScriptPath}"` };
+  }
+}
 
 const output = `${JSON.stringify(settings, null, 2)}\n`;
 if (dryRun) {

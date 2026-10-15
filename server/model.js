@@ -86,6 +86,7 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
     const mergeRequestLine = linked ? describeMergeRequest(linked) : session.branch ? `Branche ${session.branch}` : "Aucune";
     characters.push({
       key: `s:${session.sessionId}`,
+      sessionId: session.sessionId,
       kind: "robot",
       room,
       name: sessionName(session),

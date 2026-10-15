@@ -63,6 +63,23 @@ Cela ouvre le **mode démo** sur http://localhost:5173 : des données d'exemple 
 
 Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 
+### Modale d'une conversation
+
+Un clic sur un robot ouvre une modale avec le pourcentage de contexte de la conversation, ses derniers messages et la commande pour la reprendre dans un terminal. Un clic sur une merge request ou sur un agent affiche ses informations et le lien GitLab.
+
+- **Contexte** : calculé depuis le dernier échange du transcript (entrée, cache lu et cache créé). La fenêtre est de 1 M de tokens pour les modèles Claude 5 et de 200 k sinon, ou la valeur de `EDDY_CONTEXT_WINDOW`. Sur une session de l'app, l'écart avec l'indicateur de l'app est de quelques tokens.
+- **Messages** : lus dans le transcript local de la session, sans rien envoyer.
+- **Reprise** : la modale est en lecture seule, elle n'envoie rien à Claude. Pour une session lancée dans un terminal, elle affiche la commande `claude --resume <id>` à copier. Pour une session de l'app Claude, le bouton « Ouvrir dans l'app Claude » ouvre directement la conversation (lien `claude://code/continue?session=…`) : reprendre une telle session depuis un terminal créerait un conflit dans la conversation.
+- **Lien vers l'app** : l'app range, pour chaque session, son propre identifiant à côté de celui des hooks (dossier `claude-code-sessions` de ses données). Le serveur lit uniquement cette correspondance, sous Windows comme depuis WSL (y compris pour l'app installée depuis le Microsoft Store, dont les données sont redirigées vers `Packages\Claude_*\LocalCache`). Si la correspondance est introuvable, la modale le dit au lieu d'afficher un bouton cassé. Le navigateur peut demander une confirmation la première fois qu'il ouvre `claude://`.
+- **Sécurité** : le serveur n'écoute que sur `127.0.0.1`, n'accepte que des requêtes de lecture sur les sessions, refuse un en-tête `Host` qui n'est pas local, et ne lit que les transcripts situés dans un dossier `.claude/projects`.
+
+### Limites d'usage et connecteurs
+
+La colonne de droite affiche vos limites Claude (session de 5 heures, semaine tous modèles, et un détail par modèle quand il est connu) et l'état des connecteurs que vous choisissez avec le bouton « Choisir » (le choix est mémorisé dans le navigateur). Ces deux informations ne sont pas accessibles à un programme local : elles viennent de deux fichiers lus par le serveur dans `~/.claude/eddy-office` (`usage.json` et `connectors.json`).
+
+- **Limites, en continu** : `npm run statusline:install` ajoute une ligne d'état Claude Code qui reçoit les limites après chaque message et les écrit dans `usage.json`. Elle n'écrase jamais une ligne d'état existante. Elle fonctionne dans les sessions Claude Code en terminal.
+- **Limites et connecteurs, à la demande** : la commande `/eddy-snapshot` (dossier `.claude/commands`) demande à une session Claude de lire ses connecteurs et ses limites, puis de les écrire dans les deux fichiers. Les données affichent leur ancienneté, et passent en orange quand elles sont trop vieilles.
+
 ### Variables d'environnement
 
 | Variable | Défaut | Rôle |
@@ -73,6 +90,7 @@ Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 | `EDDY_PORT` | `5174` | Port du serveur local |
 | `EDDY_SESSION_MAX_AGE_HOURS` | `36` | Les sessions plus anciennes sont masquées |
 | `EDDY_AGENT_MAX_AGE_MINUTES` | `30` | Un agent sans nouvelle de fin au bout de ce délai est considéré comme terminé |
+| `EDDY_CONTEXT_WINDOW` | (auto) | Force la taille de la fenêtre de contexte, en tokens |
 | `EDDY_SESSION_DIRS` | (vide) | Dossiers de sessions supplémentaires, séparés par `;` |
 | `EDDY_DETECT_WSL` | `true` | Détecter automatiquement les sessions de l'autre système (Windows et WSL) |
 
@@ -89,11 +107,13 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 | `npm start` | Construit la scène puis sert la version de production |
 | `npm test` | Tests du serveur et des hooks |
 | `npm run hooks:install` | Installe les hooks dans les réglages Claude Code |
-| `npm run hooks:remove` | Retire les hooks |
+| `npm run hooks:remove` | Retire les hooks (et la ligne d'état si elle a été installée) |
+| `npm run statusline:install` | Ajoute la ligne d'état qui alimente les limites d'usage |
 
 ## Limites
 
 - Le titre affiché dans l'app Claude n'est pas accessible aux hooks : le titre vient du transcript, sinon du premier message de la session.
+- L'état des connecteurs claude.ai n'est lisible que depuis une session Claude : il est actualisé à la demande, pas en continu.
 - La détection « attend une réponse » est une heuristique : dernier message terminé par une question, ou demande de permission.
 - Les dépendances entre MR ne sont reconnues que si la description les écrit (`Depends on repo!N`, `Merge before repo!N`, « Dépend de… », « À merger avant… »).
 - Les trajets des personnages n'évitent pas les meubles.

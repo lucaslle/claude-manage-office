@@ -4,21 +4,33 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bureaux Claude</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <header class="topbar">
-      <h1 class="topbar__title">Bureaux Claude</h1>
-      <div class="topbar__actions">
-        <span class="topbar__state" id="source-status"></span>
-        <div class="topbar__group" id="demo-controls">
-          <span class="topbar__state" id="demo-state">Démo automatique en cours</span>
-          <button class="button" id="demo-toggle" type="button">Pause</button>
-          <button class="button" id="reset-all" type="button">Réinitialiser</button>
+    <header class="app-bar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true"></span>
+        <h1 class="brand__title">Bureaux Claude</h1>
+      </div>
+      <div class="status-pill" id="source-pill">
+        <span class="status-pill__dot" aria-hidden="true"></span>
+        <span class="status-pill__text" id="source-status"></span>
+      </div>
+      <div class="app-bar__actions">
+        <div class="segmented" id="demo-controls">
+          <span class="segmented__label" id="demo-state">Démo automatique en cours</span>
+          <button class="button button--small" id="demo-toggle" type="button">Pause</button>
+          <button class="button button--small" id="reset-all" type="button">Réinitialiser</button>
         </div>
-        <button class="button" id="reset-camera" type="button">Recentrer</button>
-        <label class="topbar__quality">
-          Qualité
+        <button class="button button--icon" id="reset-camera" type="button" aria-label="Recentrer la caméra" title="Recentrer la caméra">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path></svg>
+        </button>
+        <button class="button button--icon" id="theme-toggle" type="button" aria-label="Changer de thème" title="Changer de thème">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+        </button>
+        <label class="field">
+          <span class="field__label">Qualité</span>
           <select class="select" id="quality">
             <option value="low">Légère</option>
             <option value="medium" selected>Équilibrée</option>
@@ -28,14 +40,24 @@
       </div>
     </header>
     <main class="layout">
-      <section class="stage" id="stage" aria-label="Scène 3D des bureaux"></section>
+      <section class="stage-wrap">
+        <div class="stage" id="stage" aria-label="Scène 3D des bureaux"></div>
+        <div class="hud" id="hud" aria-label="Résumé"></div>
+      </section>
       <aside class="side">
-        <section class="panel" aria-live="polite">
-          <div class="panel__head">
-            <h2 class="panel__title" id="panel-title"></h2>
+        <section class="card" aria-labelledby="usage-title">
+          <header class="card__head">
+            <h2 class="card__title" id="usage-title">Limites d'usage</h2>
+            <span class="card__meta" id="usage-meta"></span>
+          </header>
+          <div id="usage-body"></div>
+        </section>
+        <section class="card" aria-live="polite" aria-label="Détail du personnage sélectionné">
+          <header class="card__head">
+            <h2 class="card__title" id="panel-title"></h2>
             <span class="badge" id="panel-room"></span>
-          </div>
-          <dl class="panel__list">
+          </header>
+          <dl class="facts">
             <dt>Pourquoi ici</dt>
             <dd id="panel-why"></dd>
             <dt>Merge request</dt>
@@ -43,18 +65,61 @@
             <dt>Action</dt>
             <dd id="panel-action"></dd>
           </dl>
-          <a class="panel__link" id="panel-link" target="_blank" rel="noopener" hidden>Ouvrir dans GitLab</a>
+          <a class="link" id="panel-link" target="_blank" rel="noopener" hidden>Ouvrir dans GitLab</a>
         </section>
-        <section class="panel" id="events-panel">
-          <h2 class="panel__label">Déclencher un changement d'état</h2>
+        <section class="card" aria-labelledby="connectors-title">
+          <header class="card__head">
+            <h2 class="card__title" id="connectors-title">Connecteurs</h2>
+            <button class="button button--small" id="connectors-choose" type="button" aria-expanded="false" aria-controls="connectors-selector">Choisir</button>
+          </header>
+          <div class="selector" id="connectors-selector" hidden></div>
+          <div id="connectors-body"></div>
+        </section>
+        <section class="card" id="events-panel">
+          <header class="card__head">
+            <h2 class="card__title">Changements d'état</h2>
+            <span class="card__meta">Démo</span>
+          </header>
           <div class="events" id="events"></div>
         </section>
-        <section class="panel">
-          <h2 class="panel__label">Journal</h2>
+        <section class="card">
+          <header class="card__head">
+            <h2 class="card__title">Journal</h2>
+          </header>
           <ul class="log" id="log"></ul>
         </section>
       </aside>
     </main>
+    <dialog class="modal" id="session-modal" aria-labelledby="modal-title">
+      <div class="modal__panel">
+        <header class="modal__head">
+          <div class="modal__heading">
+            <h2 class="modal__title" id="modal-title"></h2>
+            <span class="badge" id="modal-room"></span>
+          </div>
+          <button class="button button--icon" id="modal-close" type="button" aria-label="Fermer">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+        </header>
+        <div class="modal__scroll">
+          <div id="modal-facts"></div>
+          <a class="link" id="modal-link" target="_blank" rel="noopener" hidden>Ouvrir dans GitLab</a>
+          <section class="modal__context" id="modal-context"></section>
+          <section class="modal__chat" id="modal-chat" aria-live="polite" aria-label="Derniers messages"></section>
+        </div>
+        <footer class="modal__footer" id="modal-footer">
+          <a class="button button--primary modal__open" id="modal-open-app" href="#" hidden>Ouvrir dans l'app Claude</a>
+          <div class="modal__resume" id="modal-resume" hidden>
+            <span class="modal__label">Reprendre dans un terminal</span>
+            <div class="modal__command">
+              <code class="modal__code" id="modal-command"></code>
+              <button class="button button--small" id="modal-copy" type="button">Copier</button>
+            </div>
+          </div>
+          <p class="modal__note" id="modal-note"></p>
+        </footer>
+      </div>
+    </dialog>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

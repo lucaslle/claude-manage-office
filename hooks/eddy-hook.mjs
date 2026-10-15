@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { excerpt, findTitle, firstUserPrompt, lastAssistantText, looksLikeQuestion, readHeadLines, readTailLines } from "./transcript.mjs";
+import { excerpt, findEntrypoint, findTitle, firstUserPrompt, lastAssistantText, looksLikeQuestion, readHeadLines, readTailLines } from "./transcript.mjs";
 
 const MODE_STATES = { prompt: "working", stop: "idle", notify: "needs_reply", start: "idle", end: "ended", "agent-start": "working", "agent-stop": "working" };
 const AGENT_TOOL_NAMES = new Set(["Task", "Agent"]);
@@ -107,6 +107,8 @@ const run = async () => {
     state: resolveState(mode, payload, previous, lastText),
     lastMessage: excerpt(lastText || previous?.lastMessage || "", MESSAGE_LENGTH),
     transcriptPath: payload.transcript_path ?? previous?.transcriptPath ?? "",
+    entrypoint: findEntrypoint(tailLines) || previous?.entrypoint || "",
+    platform: process.platform,
     subagents: nextSubagents(mode, payload, previous, now),
     startedAt: previous?.startedAt ?? now,
     updatedAt: now,

@@ -1,4 +1,4 @@
-import { EVENTS, ROOM_NAMES, ROOM_ACTIONS } from "./data.js";
+import { EVENTS, ROOM_NAMES, ROOM_ACTIONS, DEMO_SOURCES, buildDemoConnectors, buildDemoUsage } from "./data.js";
 
 const DEMO_INTERVAL_MS = 6500;
 const DEMO_START_DELAY_MS = 2500;
@@ -8,7 +8,7 @@ const DEMO_AGENT_TINTS = [0x4d8ef0, 0xe58a2f, 0x39b085, 0xb06ad8, 0xd8627f, 0x3f
 
 const cloneSpecs = (specs) => specs.map((spec) => ({ ...spec }));
 
-export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
+export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsPanel, hud }) => {
   const panelTitle = document.getElementById("panel-title");
   const panelRoom = document.getElementById("panel-room");
   const panelWhy = document.getElementById("panel-why");
@@ -22,6 +22,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
   const demoState = document.getElementById("demo-state");
   const demoControls = document.getElementById("demo-controls");
   const sourceStatus = document.getElementById("source-status");
+  const sourcePill = document.getElementById("source-pill");
 
   let selectedKey = null;
   let demoTimer = null;
@@ -80,6 +81,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
   const applyDemoSpecs = (mergedKeys = []) => {
     const { overflow } = crowd.sync(currentDemoSpecs, { mergedKeys });
     onOverflow?.(overflow);
+    hud.update(currentDemoSpecs);
   };
 
   const agentKeyPrefix = (parentKey) => `demo-agent:${parentKey}:`;
@@ -141,6 +143,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
     crowd.clear();
     crowd.sync(currentDemoSpecs, { immediate: true });
     onOverflow?.({});
+    hud.update(currentDemoSpecs);
     demoStep = 0;
     if (!crowd.describe(selectedKey)) select(demoSpecs[0].key);
     else refreshPanel();
@@ -200,7 +203,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
 
   const setSourceStatus = (text, warning) => {
     sourceStatus.textContent = text;
-    sourceStatus.classList.toggle("topbar__state--warn", warning);
+    sourcePill.classList.toggle("status-pill--warn", warning);
   };
 
   const enterDemoMode = () => {
@@ -208,6 +211,9 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
     demoControls.hidden = false;
     eventsPanel.hidden = false;
     setSourceStatus("Mode démo : serveur local non joignable (npm run live)", true);
+    usagePanel.render(buildDemoUsage());
+    connectorsPanel.render({ snapshot: buildDemoConnectors(), sources: DEMO_SOURCES, demo: true });
+    hud.update(currentDemoSpecs);
     crowd.sync(currentDemoSpecs, { immediate: true });
     select(demoSpecs[0].key);
     log("Situation de départ : 3 conversations attendent votre réponse.");
@@ -225,6 +231,9 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
   const applyLiveState = (state) => {
     const { overflow } = crowd.sync(state.characters, { mergedKeys: state.mergedKeys });
     onOverflow?.(overflow);
+    hud.update(state.characters);
+    usagePanel.render(state.usage ?? null);
+    connectorsPanel.render({ snapshot: state.connectors ?? null, sources: state.sources });
     const gitlab = state.sources.gitlab;
     const problem = gitlab.state === "ok" || gitlab.state === "pending" ? "" : gitlab.message;
     setSourceStatus(problem ? `${describeSources(state.sources)} · ${problem}` : describeSources(state.sources), Boolean(problem));
@@ -243,5 +252,5 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
 
   const markLiveLost = () => setSourceStatus("Connexion au serveur local perdue, nouvelle tentative…", true);
 
-  return { select, refreshPanel, enterDemoMode, enterLiveMode, applyLiveState, markLiveLost, log };
+  return { select, refreshPanel, enterDemoMode, enterLiveMode, applyLiveState, markLiveLost, log, isLive: () => liveMode };
 };

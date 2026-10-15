@@ -90,6 +90,39 @@ export const firstUserPrompt = (lines) => {
   return "";
 };
 
+export const findEntrypoint = (lines) => {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const entry = parseLine(lines[index]);
+    if (entry && typeof entry.entrypoint === "string" && entry.entrypoint) return entry.entrypoint;
+  }
+  return "";
+};
+
+export const contextFromLines = (lines) => {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const entry = parseLine(lines[index]);
+    const usage = entry?.type === "assistant" ? entry.message?.usage : null;
+    if (!usage) continue;
+    const tokens = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
+    if (tokens > 0) return { tokens, model: entry.message?.model ?? "" };
+  }
+  return null;
+};
+
+const stripSystemReminders = (text) => text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
+
+export const recentMessages = (lines, { limit = 8, maxLength = 4000 } = {}) => {
+  const messages = [];
+  for (let index = lines.length - 1; index >= 0 && messages.length < limit; index -= 1) {
+    const entry = parseLine(lines[index]);
+    if (!entry || (entry.type !== "user" && entry.type !== "assistant") || entry.isMeta || entry.isSidechain) continue;
+    const text = stripSystemReminders(textFromContent(entry.message?.content));
+    if (!text) continue;
+    messages.unshift({ role: entry.type, text: text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text, timestamp: entry.timestamp ?? null });
+  }
+  return messages;
+};
+
 export const looksLikeQuestion = (text) => {
   const tail = text.trim().slice(-500);
   if (!tail) return false;
