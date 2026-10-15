@@ -6,6 +6,7 @@ const DETAILS_POLL_MS = 4000;
 const WARN_AT = 70;
 const BAD_AT = 90;
 const DEMO_NOTE = "Mode démo : exemple de contenu.";
+const DIGEST_LABELS = { user: "Votre dernière demande", assistant: "Dernière réponse de Claude" };
 
 const tone = (percent) => (percent >= BAD_AT ? "bad" : percent >= WARN_AT ? "warn" : "ok");
 
@@ -20,22 +21,24 @@ const formatTime = (timestamp) => {
 const buildContext = (context) => {
   const block = element("div", context ? `meter meter--${tone(context.percent)}` : "meter");
   const head = element("div", "meter__head");
-  head.append(element("span", "meter__title", "Contexte de la conversation"), element("span", "meter__value", context ? `${context.percent} %` : "—"));
+  const value = context ? `${context.percent} %` : "—";
+  head.append(element("span", "meter__title", "Contexte utilisé"), element("span", "meter__value", value));
   const track = element("div", "meter__track");
   const fill = element("div", "meter__fill");
   fill.style.width = `${context ? context.percent : 0}%`;
   track.append(fill);
-  const foot = element("div", "meter__foot", context ? `${formatTokens(context.tokens)} sur ${formatTokens(context.window)} (estimation d'après le dernier échange)` : "Pas encore d'échange mesuré");
-  block.append(head, track, foot);
+  block.append(head, track);
+  if (context) block.title = `${formatTokens(context.tokens)} sur ${formatTokens(context.window)} (estimation d'après le dernier échange)`;
   return block;
 };
 
-const buildBubble = (message) => {
-  const bubble = element("div", `bubble-chat bubble-chat--${message.role}`);
-  const time = formatTime(message.timestamp);
-  bubble.append(element("div", "bubble-chat__meta", `${message.role === "user" ? "Vous" : "Claude"}${time ? ` · ${time}` : ""}`), element("div", "bubble-chat__text", message.text));
-  return bubble;
-};
+const lastOfRole = (messages, role) => messages.findLast((message) => message.role === role);
+
+const pickDigest = (messages) =>
+  ["user", "assistant"]
+    .map((role) => lastOfRole(messages, role))
+    .filter(Boolean)
+    .sort((first, second) => messages.indexOf(first) - messages.indexOf(second));
 
 const buildFacts = (spec) => {
   const facts = element("dl", "facts");
@@ -53,7 +56,7 @@ export const createSessionModal = ({ isLive }) => {
   const badge = document.getElementById("modal-room");
   const factsBox = document.getElementById("modal-facts");
   const contextBox = document.getElementById("modal-context");
-  const chat = document.getElementById("modal-chat");
+  const digest = document.getElementById("modal-digest");
   const footer = document.getElementById("modal-footer");
   const note = document.getElementById("modal-note");
   const link = document.getElementById("modal-link");
@@ -64,20 +67,53 @@ export const createSessionModal = ({ isLive }) => {
 
   let currentSpec = null;
   let detailsTimer = null;
-  let lastMessageCount = 0;
+  let digestSignature = "";
+  let expandedRoles = new Set();
 
   const setNote = (text, isError = false) => {
     note.textContent = text;
     note.classList.toggle("modal__note--error", isError);
   };
 
-  const renderChat = (messages) => {
-    const nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
-    chat.replaceChildren();
-    if (messages.length === 0) chat.append(element("p", "empty", "Aucun message lisible pour cette session."));
-    messages.forEach((message) => chat.append(buildBubble(message)));
-    if (nearBottom || messages.length !== lastMessageCount) chat.scrollTop = chat.scrollHeight;
-    lastMessageCount = messages.length;
+  const buildDigestItem = (message) => {
+    const item = element("div", `digest digest--${message.role}`);
+    const time = formatTime(message.timestamp);
+    const text = element("p", "digest__text", message.text);
+    item.classList.toggle("digest--open", expandedRoles.has(message.role));
+    item.append(element("div", "digest__meta", `${DIGEST_LABELS[message.role]}${time ? ` · ${time}` : ""}`), text);
+    const toggle = element("button", "digest__toggle");
+    toggle.type = "button";
+    toggle.hidden = true;
+    toggle.addEventListener("click", () => {
+      const open = item.classList.toggle("digest--open");
+      if (open) expandedRoles.add(message.role);
+      else expandedRoles.delete(message.role);
+      toggle.textContent = open ? "Réduire" : "Voir tout";
+    });
+    item.append(toggle);
+    return { item, text, toggle };
+  };
+
+  const renderDigest = (messages) => {
+    const picked = pickDigest(messages);
+    const signature = JSON.stringify(picked.map((message) => [message.role, message.text]));
+    if (signature === digestSignature) return;
+    digestSignature = signature;
+    digest.replaceChildren();
+    if (picked.length === 0) {
+      digest.append(element("p", "empty", "Aucun message lisible pour cette session."));
+      return;
+    }
+    const built = picked.map(buildDigestItem);
+    built.forEach(({ item }) => digest.append(item));
+    built.forEach(({ item, text, toggle }) => {
+      const open = item.classList.contains("digest--open");
+      if (open) item.classList.remove("digest--open");
+      const overflows = text.scrollHeight > text.clientHeight + 1;
+      if (open) item.classList.add("digest--open");
+      toggle.hidden = !overflows && !open;
+      toggle.textContent = open ? "Réduire" : "Voir tout";
+    });
   };
 
   const stopPolling = () => {
@@ -87,7 +123,7 @@ export const createSessionModal = ({ isLive }) => {
 
   const applyDetails = (details) => {
     contextBox.replaceChildren(buildContext(details.context));
-    renderChat(details.messages);
+    renderDigest(details.messages);
     resumeBox.hidden = !details.resume.command;
     resumeCode.textContent = details.resume.command;
     openAppLink.hidden = !details.resume.appUrl;
@@ -106,14 +142,14 @@ export const createSessionModal = ({ isLive }) => {
 
   const showSections = (visible) => {
     contextBox.hidden = !visible;
-    chat.hidden = !visible;
+    digest.hidden = !visible;
     footer.hidden = !visible;
   };
 
   const showDemo = (spec) => {
     showSections(true);
     contextBox.replaceChildren(buildContext({ percent: 42, tokens: 420000, window: 1000000 }));
-    renderChat([{ role: "assistant", text: spec.why, timestamp: null }]);
+    renderDigest([{ role: "assistant", text: spec.why, timestamp: null }]);
     resumeBox.hidden = true;
     openAppLink.hidden = true;
     setNote(DEMO_NOTE);
@@ -122,19 +158,21 @@ export const createSessionModal = ({ isLive }) => {
   const open = ({ spec, room }) => {
     stopPolling();
     currentSpec = spec;
-    lastMessageCount = 0;
+    digestSignature = "";
+    expandedRoles = new Set();
     title.textContent = spec.title;
     badge.textContent = ROOM_NAMES[room] ?? "";
-    factsBox.replaceChildren(buildFacts(spec));
     link.hidden = !spec.url;
     if (spec.url) link.href = spec.url;
 
     const isSession = spec.kind === "robot" && !spec.agent;
+    factsBox.replaceChildren(isSession ? element("p", "modal__action", spec.action) : buildFacts(spec));
+    if (!dialog.open) dialog.showModal();
     if (!isSession) {
       showSections(false);
     } else if (isLive() && spec.sessionId) {
       showSections(true);
-      chat.replaceChildren(element("p", "empty", "Chargement…"));
+      digest.replaceChildren(element("p", "empty", "Chargement…"));
       contextBox.replaceChildren();
       resumeBox.hidden = true;
       openAppLink.hidden = true;
@@ -144,7 +182,6 @@ export const createSessionModal = ({ isLive }) => {
     } else {
       showDemo(spec);
     }
-    if (!dialog.open) dialog.showModal();
   };
 
   copyButton.addEventListener("click", async () => {
