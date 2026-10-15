@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
-const HIP_Y = 0.74;
+const HIP_Y = 0.54;
 const ARM_REST = 0.14;
 const TURN = Math.PI * 2;
 
@@ -70,7 +70,7 @@ const buildClips = () => [
     "Hips.position[y]": spread(1.6, [HIP_Y, HIP_Y + 0.015, HIP_Y]),
   }),
   clip("Sitting", 0.5, {
-    "Hips.position[y]": hold(HIP_Y - 0.3),
+    "Hips.position[y]": hold(HIP_Y - 0.26),
     "LegL.rotation[x]": hold(-1.45),
     "LegR.rotation[x]": hold(-1.45),
     "ShinL.rotation[x]": hold(1.4),
@@ -113,13 +113,31 @@ const buildClips = () => [
   }),
 ];
 
+const CLAUDE_TERRACOTTA = 0xd97757;
+const CLAUDE_CREAM = 0xf4ece2;
+const STAR_RAYS = 12;
+
+const starShape = (outer, inner) => {
+  const shape = new THREE.Shape();
+  for (let point = 0; point < STAR_RAYS * 2; point += 1) {
+    const radius = point % 2 === 0 ? outer : inner;
+    const angle = (point / (STAR_RAYS * 2)) * TURN;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (point === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return shape;
+};
+
 export const buildRobotModel = () => {
-  const mainMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0.05 });
+  const mainMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.05 });
   mainMaterial.name = "Main";
-  const shellMaterial = new THREE.MeshStandardMaterial({ color: 0xeef1f5, roughness: 0.42, metalness: 0.04 });
-  const accentMaterial = new THREE.MeshStandardMaterial({ color: 0x2b303a, roughness: 0.55, metalness: 0.25 });
-  const visorMaterial = new THREE.MeshStandardMaterial({ color: 0x0d1117, roughness: 0.12, metalness: 0.3 });
-  const glowMaterial = new THREE.MeshStandardMaterial({ color: 0xc6f1ff, emissive: 0x7fd8ff, emissiveIntensity: 2.2, roughness: 0.3 });
+  const clayMaterial = new THREE.MeshStandardMaterial({ color: CLAUDE_TERRACOTTA, roughness: 0.6, metalness: 0.02 });
+  const inkMaterial = new THREE.MeshStandardMaterial({ color: 0x24201c, roughness: 0.5, metalness: 0.1 });
+  const creamMaterial = new THREE.MeshStandardMaterial({ color: CLAUDE_CREAM, roughness: 0.7, metalness: 0 });
+  const shineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6, roughness: 0.4 });
 
   const mesh = (geometry, material, parent, x = 0, y = 0, z = 0) => {
     const node = new THREE.Mesh(geometry, material);
@@ -141,51 +159,35 @@ export const buildRobotModel = () => {
   const hips = group("Hips", body, 0, HIP_Y, 0);
 
   const leg = (name, side) => {
-    const hip = group(`Leg${name}`, hips, side * 0.17, 0, 0);
-    mesh(new THREE.SphereGeometry(0.1, 20, 16), accentMaterial, hip);
-    mesh(new THREE.CapsuleGeometry(0.085, 0.24, 6, 16), shellMaterial, hip, 0, -0.17, 0);
-    const shin = group(`Shin${name}`, hip, 0, -0.34, 0);
-    mesh(new THREE.SphereGeometry(0.08, 20, 16), accentMaterial, shin);
-    mesh(new THREE.CapsuleGeometry(0.075, 0.2, 6, 16), shellMaterial, shin, 0, -0.15, 0);
-    mesh(new RoundedBoxGeometry(0.2, 0.1, 0.32, 4, 0.045), mainMaterial, shin, 0, -0.35, 0.05);
+    const hip = group(`Leg${name}`, hips, side * 0.24, 0, 0);
+    mesh(new THREE.CapsuleGeometry(0.09, 0.14, 6, 16), clayMaterial, hip, 0, -0.12, 0);
+    const shin = group(`Shin${name}`, hip, 0, -0.26, 0);
+    mesh(new THREE.CapsuleGeometry(0.08, 0.1, 6, 16), clayMaterial, shin, 0, -0.1, 0);
+    mesh(new RoundedBoxGeometry(0.24, 0.11, 0.32, 4, 0.05), mainMaterial, shin, 0, -0.22, 0.05);
   };
   leg("L", -1);
   leg("R", 1);
 
   const torso = group("Torso", hips);
-  const egg = mesh(new THREE.SphereGeometry(0.4, 40, 28), mainMaterial, torso, 0, 0.5, 0);
-  egg.scale.set(0.85, 1.15, 0.78);
-  mesh(new RoundedBoxGeometry(0.26, 0.2, 0.06, 4, 0.025), visorMaterial, torso, 0, 0.56, 0.29);
-  mesh(new RoundedBoxGeometry(0.14, 0.035, 0.02, 3, 0.01), glowMaterial, torso, 0, 0.56, 0.325);
-  mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.16, 20), accentMaterial, torso, 0, 1.0, 0);
+  const head = group("Head", torso, 0, 0.06, 0);
+  mesh(new RoundedBoxGeometry(0.98, 0.9, 0.62, 5, 0.18), clayMaterial, head, 0, 0.45, 0);
+  [-1, 1].forEach((side) => {
+    mesh(new RoundedBoxGeometry(0.13, 0.18, 0.05, 3, 0.035), inkMaterial, head, side * 0.2, 0.6, 0.31);
+    mesh(new THREE.SphereGeometry(0.028, 12, 10), shineMaterial, head, side * 0.2 + 0.03, 0.645, 0.335);
+  });
+  const star = mesh(new THREE.ShapeGeometry(starShape(0.16, 0.095)), creamMaterial, head, 0, 0.26, 0.318);
+  star.castShadow = false;
+  mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.01, 24), creamMaterial, head, 0, 0.26, 0.32).rotation.x = Math.PI / 2;
 
   const arm = (name, side) => {
-    const shoulder = group(`Arm${name}`, torso, side * 0.4, 0.74, 0);
-    mesh(new THREE.SphereGeometry(0.095, 20, 16), accentMaterial, shoulder);
-    mesh(new THREE.CapsuleGeometry(0.07, 0.24, 6, 16), shellMaterial, shoulder, 0, -0.17, 0);
-    const forearm = group(`Forearm${name}`, shoulder, 0, -0.36, 0);
-    mesh(new THREE.SphereGeometry(0.075, 20, 16), accentMaterial, forearm);
-    mesh(new THREE.CapsuleGeometry(0.065, 0.2, 6, 16), shellMaterial, forearm, 0, -0.14, 0);
-    mesh(new THREE.SphereGeometry(0.095, 20, 16), mainMaterial, forearm, 0, -0.32, 0);
+    const shoulder = group(`Arm${name}`, head, side * 0.5, 0.52, 0);
+    mesh(new THREE.CapsuleGeometry(0.08, 0.16, 6, 16), clayMaterial, shoulder, 0, -0.1, 0);
+    const forearm = group(`Forearm${name}`, shoulder, 0, -0.22, 0);
+    mesh(new THREE.CapsuleGeometry(0.075, 0.12, 6, 16), clayMaterial, forearm, 0, -0.08, 0);
+    mesh(new THREE.SphereGeometry(0.1, 20, 16), mainMaterial, forearm, 0, -0.2, 0);
   };
   arm("L", -1);
   arm("R", 1);
-
-  const head = group("Head", torso, 0, 1.06, 0);
-  const skull = mesh(new THREE.SphereGeometry(0.31, 40, 28), mainMaterial, head, 0, 0.26, 0);
-  skull.scale.set(1, 0.88, 0.94);
-  const visor = mesh(new THREE.SphereGeometry(0.315, 40, 28, Math.PI / 2 - 1.0, 2.0, 0.6, 1.05), visorMaterial, head, 0, 0.26, 0);
-  visor.scale.copy(skull.scale);
-  [-1, 1].forEach((side) => {
-    const eye = mesh(new THREE.SphereGeometry(0.045, 16, 12), glowMaterial, head, side * 0.1, 0.28, 0.265);
-    eye.scale.set(1, 1.5, 0.5);
-  });
-  [-1, 1].forEach((side) => {
-    const ear = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.05, 20), accentMaterial, head, side * 0.31, 0.26, 0);
-    ear.rotation.z = Math.PI / 2;
-  });
-  mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.14, 10), accentMaterial, head, 0, 0.58, 0);
-  mesh(new THREE.SphereGeometry(0.04, 16, 12), glowMaterial, head, 0, 0.66, 0);
 
   scene.traverse((node) => {
     if (!node.isMesh) return;
