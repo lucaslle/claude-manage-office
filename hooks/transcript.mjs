@@ -90,6 +90,55 @@ export const firstUserPrompt = (lines) => {
   return "";
 };
 
+export const findEntrypoint = (lines) => {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const entry = parseLine(lines[index]);
+    if (entry && typeof entry.entrypoint === "string" && entry.entrypoint) return entry.entrypoint;
+  }
+  return "";
+};
+
+export const contextFromLines = (lines) => {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const entry = parseLine(lines[index]);
+    const usage = entry?.type === "assistant" ? entry.message?.usage : null;
+    if (!usage) continue;
+    const tokens = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
+    if (tokens > 0) return { tokens, model: entry.message?.model ?? "" };
+  }
+  return null;
+};
+
+const stripSystemReminders = (text) => text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
+
+export const recentMessages = (lines, { limit = 8, maxLength = 4000 } = {}) => {
+  const messages = [];
+  for (let index = lines.length - 1; index >= 0 && messages.length < limit; index -= 1) {
+    const entry = parseLine(lines[index]);
+    if (!entry || (entry.type !== "user" && entry.type !== "assistant") || entry.isMeta || entry.isSidechain) continue;
+    const text = stripSystemReminders(textFromContent(entry.message?.content));
+    if (!text) continue;
+    messages.unshift({ role: entry.type, text: text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text, timestamp: entry.timestamp ?? null });
+  }
+  return messages;
+};
+
+const REVIEW_COMMAND = /^\s*\/(?:[\w-]+:)?[\w-]*review\b/i;
+const REVIEW_REQUEST = /^\s*(?:(?:peux-tu|pouvez-vous|can you|could you|please|stp|s'il te plaît)\s+)*(?:(?:fais|faire|fait|lance|lancer|do|run|start)(?:\s+|-)(?:moi\s+)?(?:une?\s+|a\s+)?)?(?:code[- ]?)?(?:review|relecture|revue|relis|relire)\b/i;
+
+export const looksLikeReview = (prompt) => {
+  if (typeof prompt !== "string") return false;
+  const start = prompt.trim().slice(0, 120);
+  return REVIEW_COMMAND.test(start) || REVIEW_REQUEST.test(start);
+};
+
+export const REFRESH_MARKER = "[eddy-refresh]";
+
+const REFRESH_SCAN_LENGTH = 2000;
+
+// L'app enveloppe le texte d'une tâche planifiée dans une introduction : le marqueur n'est pas au tout début du message.
+export const looksLikeRefresh = (prompt) => typeof prompt === "string" && prompt.slice(0, REFRESH_SCAN_LENGTH).includes(REFRESH_MARKER);
+
 export const looksLikeQuestion = (text) => {
   const tail = text.trim().slice(-500);
   if (!tail) return false;

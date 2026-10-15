@@ -10,12 +10,14 @@ const CELEBRATE_SECONDS = 1.5;
 const VANISH_SECONDS = 0.6;
 const SPAWN_SECONDS = 0.6;
 const ROBOT_HEIGHT = 2.4;
+const AGENT_HEIGHT_RATIO = 0.85;
 const MR_HEIGHT = 2.3;
 
 const ROBOT_CLIPS = {
   wave: "Wave",
   type: "Sitting",
   sleep: "Sitting",
+  meet: "Sitting",
   stand: "Idle",
   queue: "Idle",
   ready: "Idle",
@@ -121,7 +123,8 @@ export const createCharacters = ({ scene, models }) => {
     root.add(model);
     root.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model, true);
-    const scale = (isRobot ? ROBOT_HEIGHT : MR_HEIGHT) / (bounds.max.y - bounds.min.y);
+    const characterHeight = isRobot ? (spec.agent ? ROBOT_HEIGHT * AGENT_HEIGHT_RATIO : ROBOT_HEIGHT) : MR_HEIGHT;
+    const scale = characterHeight / (bounds.max.y - bounds.min.y);
     model.scale.setScalar(scale);
     model.position.y = -bounds.min.y * scale;
 
@@ -155,7 +158,7 @@ export const createCharacters = ({ scene, models }) => {
     });
 
     const labelElement = document.createElement("div");
-    labelElement.className = isRobot ? "tag" : "tag tag--mr";
+    labelElement.className = !isRobot ? "tag tag--mr" : spec.agent ? "tag tag--agent" : "tag";
     labelElement.textContent = spec.name;
     const labelObject = new CSS2DObject(labelElement);
     root.add(labelObject);
@@ -179,7 +182,7 @@ export const createCharacters = ({ scene, models }) => {
       labelObject,
       bubbleInner,
       bubbleObject,
-      height: isRobot ? ROBOT_HEIGHT : MR_HEIGHT,
+      height: characterHeight,
       room: spec.room,
       slot: 0,
       pose: "stand",
@@ -204,6 +207,8 @@ export const createCharacters = ({ scene, models }) => {
   const removeCharacter = (key) => {
     const character = characters[key];
     if (!character) return;
+    character.root.remove(character.labelObject);
+    character.root.remove(character.bubbleObject);
     scene.remove(character.root);
     character.mixer.stopAllAction();
     character.ownedMaterials.forEach((material) => material.dispose());
@@ -263,7 +268,7 @@ export const createCharacters = ({ scene, models }) => {
     character.root.position.set(position.x, 0, position.z);
     character.root.rotation.y = slot.ry;
     character.celebrate = 0;
-    playClip(character, baseClip(character), { once: character.pose === "type" || character.pose === "sleep", fade: 0.35 });
+    playClip(character, baseClip(character), { once: SEATED_POSES.has(character.pose), fade: 0.35 });
     refreshLabelHeight(character);
     setBubble(character, ROOM_BUBBLES[roomId]);
   };

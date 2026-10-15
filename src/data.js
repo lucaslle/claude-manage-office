@@ -7,7 +7,7 @@ export const ROOM_NAMES = {
   draft: "Brouillons",
   fix: "Atelier",
   arch: "Archives",
-  ter: "Terrasse",
+  meet: "Salle de réunion",
 };
 
 export const ROOM_LABELS = {
@@ -19,7 +19,7 @@ export const ROOM_LABELS = {
   draft: "Brouillons",
   fix: "Atelier",
   arch: "Archives",
-  ter: "Terrasse",
+  meet: "Réunion",
 };
 
 export const ROOM_ACTIONS = {
@@ -31,6 +31,7 @@ export const ROOM_ACTIONS = {
   draft: "Finir le brouillon.",
   fix: "Corriger la CI ou résoudre le conflit.",
   arch: "Aucune.",
+  meet: "Aucune, les agents travaillent ensemble.",
 };
 
 export const CHARACTERS = [
@@ -223,6 +224,31 @@ export const CHARACTERS = [
   },
 ];
 
+export const buildDemoUsage = (now = Date.now()) => ({
+  updatedAt: now,
+  source: "demo",
+  plan: "Team",
+  fiveHour: { usedPercent: 49, resetsAt: now + (2 * 60 + 9) * 60000 },
+  sevenDay: { usedPercent: 25, resetsAt: now + (5 * 24 + 10) * 3600000 },
+  models: [{ label: "Fable", usedPercent: 11, resetsAt: now + (5 * 24 + 10) * 3600000 }],
+});
+
+export const buildDemoConnectors = (now = Date.now()) => ({
+  updatedAt: now,
+  servers: [
+    { name: "Gitlab", kind: "connector", status: "connected", toolCount: 161 },
+    { name: "Atlassian Rovo", kind: "connector", status: "connected", toolCount: 41 },
+    { name: "Claude Docs", kind: "connector", status: "needs_auth", toolCount: null },
+    { name: "plugin:playwright:playwright", kind: "plugin", status: "connected", toolCount: 25 },
+    { name: "scheduled-tasks", kind: "other", status: "connected", toolCount: 6 },
+  ],
+});
+
+export const DEMO_SOURCES = {
+  sessions: { count: 7 },
+  gitlab: { state: "ok", mergeRequests: 9, user: "vous" },
+};
+
 export const EVENTS = [
   {
     label: "Vous répondez à « Migration API »",
@@ -231,6 +257,22 @@ export const EVENTS = [
     room: "open",
     note: "Vous avez répondu : Claude reprend le travail.",
     log: "Vous répondez à « Migration API » : il retourne à l'open space.",
+  },
+  {
+    label: "Claude lance 3 agents",
+    type: "agents",
+    key: "liaison",
+    agents: ["Explorer le code", "Écrire les tests", "Relire la doc"],
+    note: "Claude a lancé 3 agents : ils se réunissent en salle de réunion.",
+    log: "« Migration API » lance 3 agents : tout le monde en salle de réunion.",
+  },
+  {
+    label: "Les agents ont terminé",
+    type: "agents-done",
+    key: "liaison",
+    room: "open",
+    note: "Les agents ont rendu leur résultat : Claude reprend le travail.",
+    log: "Les agents ont terminé : « Migration API » retourne à l'open space, pas aux archives.",
   },
   {
     label: "Claude pose une question",

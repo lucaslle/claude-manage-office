@@ -10,7 +10,8 @@
     "start": "vite build && node server/index.js --production",
     "test": "node --test \"server/*.test.js\" \"hooks/*.test.js\"",
     "hooks:install": "node hooks/install.mjs",
-    "hooks:remove": "node hooks/install.mjs --remove"
+    "hooks:remove": "node hooks/install.mjs --remove",
+    "statusline:install": "node hooks/install.mjs --statusline"
   },
   "dependencies": {
     "three": "0.170.0"

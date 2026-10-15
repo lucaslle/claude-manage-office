@@ -6,7 +6,7 @@ export const DOOR_ACROSS = -2.2;
 export const GRID = [
   ["acc", "open", "rev"],
   ["mrg", "wait", "draft"],
-  ["fix", "arch", "ter"],
+  ["fix", "arch", "meet"],
 ];
 
 export const roomCenters = {};
@@ -78,9 +78,18 @@ export const SLOTS = {
     { x: -1.25, z: 2.8, ry: 0.35, pose: "sleep" },
     { x: 1.25, z: 2.8, ry: 0.35, pose: "sleep" },
   ],
-  ter: [],
+  meet: [
+    { x: -1.0, z: -1.45, ry: 0, pose: "meet" },
+    { x: 0, z: -1.45, ry: 0, pose: "meet" },
+    { x: 1.0, z: -1.45, ry: 0, pose: "meet" },
+    { x: -1.0, z: 1.05, ry: Math.PI, pose: "meet" },
+    { x: 0, z: 1.05, ry: Math.PI, pose: "meet" },
+    { x: 1.0, z: 1.05, ry: Math.PI, pose: "meet" },
+    { x: -2.0, z: -0.2, ry: Math.PI / 2, pose: "meet" },
+    { x: 2.0, z: -0.2, ry: -Math.PI / 2, pose: "meet" },
+  ],
 };
 
-export const SEATED_POSES = new Set(["type", "sleep"]);
+export const SEATED_POSES = new Set(["type", "sleep", "meet"]);
 
 export const GATE_LOCAL = { x: 0, z: -2.5 };

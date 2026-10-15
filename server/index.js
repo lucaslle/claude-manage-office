@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import { createSessionRoutes } from "./api.js";
 import { createGitlabClient } from "./gitlab.js";
 import { loadConfig, rootDirectory } from "./config.js";
 import { buildCharacters } from "./model.js";
 import { detectWindowsSessionDirectories, detectWslSessionDirectories, readSessions } from "./sessions.js";
+import { readFreshestSnapshot } from "./snapshots.js";
 
 const SESSION_REFRESH_MS = 2000;
 const WSL_REFRESH_MS = 300000;
@@ -20,6 +22,8 @@ const detectOtherSystemDirectories = () => (config.detectWsl ? [...detectWslSess
 
 let wslDirectories = detectOtherSystemDirectories();
 let sessions = [];
+let usage = null;
+let connectors = null;
 let mergeRequests = [];
 let recentlyMerged = [];
 const gitlabConfigured = Boolean(config.gitlabToken && config.gitlabUrl);
@@ -31,9 +35,17 @@ const gitlabStatus = {
 
 const sessionDirectories = () => [...config.sessionDirectories, ...wslDirectories];
 
+const sessionRoutes = createSessionRoutes({
+  port: config.port,
+  config,
+  findSession: (sessionId) => sessions.find((record) => record.sessionId === sessionId),
+});
+
 const buildState = () => ({
-  characters: buildCharacters({ sessions, mergeRequests }),
+  characters: buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000 }),
   mergedKeys: recentlyMerged.map((entry) => entry.key),
+  usage,
+  connectors,
   sources: {
     sessions: { count: sessions.length, directories: sessionDirectories().length },
     gitlab: { ...gitlabStatus, mergeRequests: mergeRequests.length },
@@ -52,6 +64,8 @@ const publish = () => {
 
 const refreshSessions = () => {
   sessions = readSessions(sessionDirectories(), { maxAgeMs: hoursToMs(config.sessionMaxAgeHours) });
+  usage = readFreshestSnapshot(sessionDirectories(), "usage.json");
+  connectors = readFreshestSnapshot(sessionDirectories(), "connectors.json");
   publish();
 };
 
@@ -100,7 +114,8 @@ const sendJson = (response, body) => {
   response.end(JSON.stringify(body));
 };
 
-const handleApi = (request, response) => {
+const handleApi = async (request, response) => {
+  if (await sessionRoutes(request, response)) return undefined;
   if (request.url.startsWith("/api/state")) return sendJson(response, buildState());
   if (request.url.startsWith("/api/stream")) {
     response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });
@@ -136,7 +151,12 @@ const start = async () => {
   }
 
   const server = http.createServer((request, response) => {
-    if (request.url.startsWith("/api/")) return handleApi(request, response);
+    if (request.url.startsWith("/api/")) {
+      return handleApi(request, response).catch(() => {
+        if (!response.headersSent) response.writeHead(500);
+        response.end();
+      });
+    }
     if (viteServer) return viteServer.middlewares(request, response);
     return serveStatic(request, response);
   });

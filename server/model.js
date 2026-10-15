@@ -7,7 +7,15 @@ const ROOM_ACTIONS = {
   draft: "Finir le brouillon.",
   fix: "Corriger la CI ou résoudre le conflit.",
   arch: "Aucune.",
+  meet: "Aucune, les agents travaillent ensemble.",
 };
+
+const REVIEW_ACTION = "Lire la review de Claude.";
+
+const MEETING_MIN_AGENTS = 2;
+const MAX_AGENTS_PER_SESSION = 8;
+const DEFAULT_AGENT_MAX_AGE_MS = 30 * 60 * 1000;
+const AGENT_NAME_LENGTH = 18;
 
 const TINTS = [0x4d8ef0, 0xe58a2f, 0x39b085, 0xb06ad8, 0xd8627f, 0x3fb7c9, 0xc9a227, 0x7f8de8];
 const NAME_LENGTH = 22;
@@ -38,16 +46,26 @@ export const classifyMergeRequest = (mergeRequest, byKey) => {
 
 const describeMergeRequest = (mergeRequest) => `${mergeRequest.repo} !${mergeRequest.iid} vers ${mergeRequest.targetBranch}`;
 
-const sessionRoom = (session, linkedMergeRequest, classification) => {
+export const activeAgents = (session, now, maxAgeMs = DEFAULT_AGENT_MAX_AGE_MS) =>
+  (Array.isArray(session.subagents) ? session.subagents : []).filter((agent) => now - agent.startedAt <= maxAgeMs).slice(0, MAX_AGENTS_PER_SESSION);
+
+const isReview = (session) => session.activity === "review";
+
+const sessionRoom = (session, linkedMergeRequest, classification, agentCount) => {
   if (session.state === "needs_reply") return "acc";
-  if (session.state === "working") return "open";
+  if (isReview(session)) return "rev";
+  if (agentCount >= MEETING_MIN_AGENTS) return "meet";
+  if (agentCount > 0 || session.state === "working") return "open";
   return linkedMergeRequest ? classification.room : "arch";
 };
 
-const sessionWhy = (session, linkedMergeRequest, classification) => {
+const sessionWhy = (session, linkedMergeRequest, classification, agentCount) => {
   if (session.state === "needs_reply") {
     return session.lastMessage ? `Claude attend votre réponse : ${truncate(session.lastMessage, WHY_LENGTH)}` : "Claude attend votre réponse.";
   }
+  if (isReview(session)) return session.state === "working" ? "Vous avez demandé une review : Claude la fait, la conversation est en relecture." : "Vous avez demandé une review : la conversation reste en relecture.";
+  if (agentCount >= MEETING_MIN_AGENTS) return `Claude a lancé ${agentCount} agents : ils se réunissent en salle de réunion.`;
+  if (agentCount > 0) return "Claude a lancé un agent et attend son résultat.";
   if (session.state === "working") return "Claude travaille sur la tâche en cours.";
   if (linkedMergeRequest) return classification.reason;
   return "Aucune question en attente, aucune MR ouverte.";
@@ -55,7 +73,7 @@ const sessionWhy = (session, linkedMergeRequest, classification) => {
 
 const sessionName = (session) => truncate(session.title || session.cwd.split(/[\\/]/).pop() || "Session", NAME_LENGTH);
 
-export const buildCharacters = ({ sessions, mergeRequests }) => {
+export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), agentMaxAgeMs = DEFAULT_AGENT_MAX_AGE_MS }) => {
   const byKey = new Map(mergeRequests.map((mergeRequest) => [mergeRequest.key, mergeRequest]));
   const byBranch = new Map();
   mergeRequests.forEach((mergeRequest) => {
@@ -65,22 +83,44 @@ export const buildCharacters = ({ sessions, mergeRequests }) => {
   const linkedKeys = new Set();
   const characters = [];
 
-  sessions.slice(0, MAX_SESSIONS).forEach((session) => {
+  const visibleSessions = sessions.filter((session) => session.activity !== "refresh");
+
+  visibleSessions.slice(0, MAX_SESSIONS).forEach((session) => {
     const linked = session.branch ? byBranch.get(session.branch) : undefined;
     const classification = linked ? classifyMergeRequest(linked, byKey) : null;
-    const room = sessionRoom(session, linked, classification);
+    const agents = activeAgents(session, now, agentMaxAgeMs);
+    const room = sessionRoom(session, linked, classification, agents.length);
     if (linked) linkedKeys.add(linked.key);
+    const mergeRequestLine = linked ? describeMergeRequest(linked) : session.branch ? `Branche ${session.branch}` : "Aucune";
     characters.push({
       key: `s:${session.sessionId}`,
+      sessionId: session.sessionId,
       kind: "robot",
       room,
       name: sessionName(session),
       title: session.title || sessionName(session),
-      why: sessionWhy(session, linked, classification),
-      mr: linked ? describeMergeRequest(linked) : session.branch ? `Branche ${session.branch}` : "Aucune",
-      action: ROOM_ACTIONS[room],
+      why: sessionWhy(session, linked, classification, agents.length),
+      mr: mergeRequestLine,
+      action: room === "rev" && isReview(session) ? REVIEW_ACTION : ROOM_ACTIONS[room],
       url: linked?.url ?? "",
       tint: TINTS[hashString(session.sessionId) % TINTS.length],
+    });
+    const agentRoom = room === "rev" && isReview(session) ? "rev" : agents.length >= MEETING_MIN_AGENTS ? "meet" : "open";
+    agents.forEach((agent, index) => {
+      const label = agent.label || `Agent ${index + 1}`;
+      characters.push({
+        key: `a:${session.sessionId}:${agent.id}`,
+        kind: "robot",
+        agent: true,
+        room: agentRoom,
+        name: truncate(label, AGENT_NAME_LENGTH),
+        title: `Agent : ${label}`,
+        why: `Agent lancé par « ${sessionName(session)} »${agentRoom === "meet" ? ", en réunion avec les autres agents" : agentRoom === "rev" ? ", pour la review" : ""}.`,
+        mr: mergeRequestLine,
+        action: agentRoom === "rev" ? REVIEW_ACTION : ROOM_ACTIONS[agentRoom],
+        url: "",
+        tint: TINTS[hashString(`${session.sessionId}${agent.id}`) % TINTS.length],
+      });
     });
   });
 
