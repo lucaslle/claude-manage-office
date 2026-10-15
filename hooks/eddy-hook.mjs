@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { excerpt, findEntrypoint, findTitle, firstUserPrompt, lastAssistantText, looksLikeQuestion, readHeadLines, readTailLines } from "./transcript.mjs";
+import { excerpt, findEntrypoint, findTitle, firstUserPrompt, lastAssistantText, looksLikeQuestion, looksLikeRefresh, looksLikeReview, readHeadLines, readTailLines } from "./transcript.mjs";
 
 const MODE_STATES = { prompt: "working", stop: "idle", notify: "needs_reply", start: "idle", end: "ended", "agent-start": "working", "agent-stop": "working" };
 const AGENT_TOOL_NAMES = new Set(["Task", "Agent"]);
@@ -68,6 +68,12 @@ const nextSubagents = (mode, payload, previous, now) => {
   return current;
 };
 
+const resolveActivity = (mode, payload, previous) => {
+  if (mode === "end") return "";
+  if (mode === "prompt") return looksLikeRefresh(payload.prompt) ? "refresh" : looksLikeReview(payload.prompt) ? "review" : "";
+  return previous?.activity ?? "";
+};
+
 const resolveState = (mode, payload, previous, lastText) => {
   if (mode === "agent-stop") return previous?.state ?? "working";
   if (mode === "stop") return looksLikeQuestion(lastText) ? "needs_reply" : "idle";
@@ -105,6 +111,7 @@ const run = async () => {
     branch: currentBranch(payload.cwd) || previous?.branch || "",
     title,
     state: resolveState(mode, payload, previous, lastText),
+    activity: resolveActivity(mode, payload, previous),
     lastMessage: excerpt(lastText || previous?.lastMessage || "", MESSAGE_LENGTH),
     transcriptPath: payload.transcript_path ?? previous?.transcriptPath ?? "",
     entrypoint: findEntrypoint(tailLines) || previous?.entrypoint || "",

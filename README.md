@@ -10,7 +10,7 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 | --- | --- |
 | Accueil | Une session Claude attend votre réponse (question en fin de message ou demande de permission). Le personnage fait signe, avec une bulle « ! » |
 | Open space | Claude travaille |
-| Relecture | MR ouverte, en attente de relecture ou d'approbation |
+| Relecture | MR ouverte, en attente de relecture ou d'approbation, et conversation où vous faites une review (voir ci-dessous) |
 | Merge | MR mergeable, sans blocage |
 | Attente | MR qui dépend d'une autre MR encore ouverte |
 | Brouillons | MR marquée Draft |
@@ -23,6 +23,8 @@ Quand une session lance des agents, chacun apparaît comme un petit robot. À pa
 Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge.
 
 Quand une session attend une réponse, elle reste à l'accueil même si sa MR est prête : c'est vous qui bloquez.
+
+Une conversation où vous demandez une review va en Relecture, avec ses agents, et y reste jusqu'à votre prochain message qui n'en est pas une (sauf si elle vous pose une question : elle passe alors à l'accueil). Le hook la détecte à votre message : une commande `/review`, `/code-review`, `/security-review` (avec ou sans préfixe de plugin), ou un message qui commence par une demande de review (« Relis la MR !12 », « Fais une review de cette branche », « review this merge request »). Un message qui parle seulement de review plus loin dans la phrase n'est pas pris en compte.
 
 ## Fonctionnement
 
@@ -65,7 +67,7 @@ Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 
 ### Modale d'une conversation
 
-Un clic sur un robot ouvre une modale avec le pourcentage de contexte de la conversation, ses derniers messages et la commande pour la reprendre dans un terminal. Un clic sur une merge request ou sur un agent affiche ses informations et le lien GitLab.
+Un clic sur un robot ouvre une modale réduite à l'essentiel pour comprendre de quoi parle la conversation : son titre, l'action attendue, votre dernière demande, la dernière réponse de Claude (raccourcie, avec « Voir tout »), le pourcentage de contexte utilisé, et le moyen de la reprendre. Un clic sur une merge request ou sur un agent affiche ses informations et le lien GitLab.
 
 - **Contexte** : calculé depuis le dernier échange du transcript (entrée, cache lu et cache créé). La fenêtre est de 1 M de tokens pour les modèles Claude 5 et de 200 k sinon, ou la valeur de `EDDY_CONTEXT_WINDOW`. Sur une session de l'app, l'écart avec l'indicateur de l'app est de quelques tokens.
 - **Messages** : lus dans le transcript local de la session, sans rien envoyer.
@@ -79,6 +81,7 @@ La colonne de droite affiche vos limites Claude (session de 5 heures, semaine to
 
 - **Limites, en continu** : `npm run statusline:install` ajoute une ligne d'état Claude Code qui reçoit les limites après chaque message et les écrit dans `usage.json`. Elle n'écrase jamais une ligne d'état existante. Elle fonctionne dans les sessions Claude Code en terminal.
 - **Limites et connecteurs, à la demande** : la commande `/eddy-snapshot` (dossier `.claude/commands`) demande à une session Claude de lire ses connecteurs et ses limites, puis de les écrire dans les deux fichiers. Les données affichent leur ancienneté, et passent en orange quand elles sont trop vieilles.
+- **Limites et connecteurs, toutes les 10 minutes** : une tâche planifiée de l'app Claude (`eddy-refresh-usage-connecteurs`, section « Planifié » de la barre latérale) refait la même mise à jour toutes les 10 minutes. Elle ne tourne que lorsque l'app est ouverte. Chaque exécution est une petite session qui consomme un peu de votre usage ; son message commence par `[eddy-refresh]`, ce qui la fait masquer par le tableau de bord. Pour l'arrêter ou changer la fréquence, modifiez ou désactivez la tâche dans l'app. Elle contient le chemin du projet : si vous le déplacez, mettez-le à jour.
 
 ### Variables d'environnement
 

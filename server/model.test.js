@@ -132,6 +132,41 @@ describe("agents", () => {
   });
 });
 
+describe("conversation de review", () => {
+  const now = 1_000_000_000;
+  const agent = (id) => ({ id, label: `Agent ${id}`, startedAt: now - 1000 });
+
+  it("envoie en relecture une conversation où vous faites une review", () => {
+    const [working] = buildCharacters({ sessions: [makeSession({ state: "working", activity: "review" })], mergeRequests: [], now });
+    const [idle] = buildCharacters({ sessions: [makeSession({ state: "idle", activity: "review" })], mergeRequests: [], now });
+    assert.equal(working.room, "rev");
+    assert.equal(idle.room, "rev");
+    assert.equal(working.action, "Lire la review de Claude.");
+    assert.match(working.why, /review/);
+  });
+
+  it("emmène les agents de la review avec elle, sans passer par la salle de réunion", () => {
+    const session = makeSession({ state: "working", activity: "review", subagents: [agent("a"), agent("b")] });
+    const characters = buildCharacters({ sessions: [session], mergeRequests: [], now });
+    assert.deepEqual(characters.map((character) => character.room), ["rev", "rev", "rev"]);
+  });
+
+  it("laisse l'accueil prioritaire quand la review pose une question", () => {
+    const [character] = buildCharacters({ sessions: [makeSession({ state: "needs_reply", activity: "review" })], mergeRequests: [], now });
+    assert.equal(character.room, "acc");
+  });
+
+  it("masque la session qui rafraîchit l'usage et les connecteurs", () => {
+    const sessions = [makeSession({ sessionId: "r", state: "working", activity: "refresh" }), makeSession({ sessionId: "v", state: "working" })];
+    assert.deepEqual(buildCharacters({ sessions, mergeRequests: [], now }).map((character) => character.sessionId), ["v"]);
+  });
+
+  it("ne change rien pour une conversation sans review", () => {
+    const [character] = buildCharacters({ sessions: [makeSession({ state: "working", activity: "" })], mergeRequests: [], now });
+    assert.equal(character.room, "open");
+  });
+});
+
 describe("buildCharacters", () => {
   it("met à l'accueil une session qui attend une réponse, même si sa MR est prête", () => {
     const mergeRequest = makeMergeRequest({ projectId: 1, iid: 1766, status: "mergeable", sourceBranch: "041-filter" });

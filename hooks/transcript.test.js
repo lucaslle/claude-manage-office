@@ -5,12 +5,40 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { findTitle, firstUserPrompt, lastAssistantText, looksLikeQuestion } from "./transcript.mjs";
+import { findTitle, firstUserPrompt, lastAssistantText, looksLikeQuestion, looksLikeReview } from "./transcript.mjs";
 
 const hookPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "eddy-hook.mjs");
 
 const assistantLine = (text) => JSON.stringify({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text }] } });
 const userLine = (text) => JSON.stringify({ type: "user", message: { role: "user", content: text } });
+
+describe("looksLikeReview", () => {
+  it("reconnaît les commandes de review, avec ou sans préfixe de plugin", () => {
+    ["/review 123", "/code-review", "/code-review:code-review", "/security-review", "  /ultrareview"].forEach((prompt) => assert.equal(looksLikeReview(prompt), true, prompt));
+  });
+
+  it("reconnaît une demande de review au début du message", () => {
+    [
+      "Relis la MR !12",
+      "review this merge request",
+      "Peux-tu faire une review de cette branche ?",
+      "fais une code review",
+      "Fais-moi une revue de ce diff",
+      "Relecture de la branche feat/x",
+    ].forEach((prompt) => assert.equal(looksLikeReview(prompt), true, prompt));
+  });
+
+  it("ignore un message qui parle de review sans en demander une", () => {
+    [
+      "Implémente la revue de code dans le dashboard",
+      "et je veux que si je fais un review il aille dans la partie relecture",
+      "Corrige le bug, puis lance une review",
+      "/commit",
+      "",
+      undefined,
+    ].forEach((prompt) => assert.equal(looksLikeReview(prompt), false, String(prompt)));
+  });
+});
 
 describe("looksLikeQuestion", () => {
   it("détecte un point d'interrogation final", () => {
@@ -73,6 +101,26 @@ describe("script de hook", () => {
     const record = JSON.parse(fs.readFileSync(path.join(directory, "s2.json"), "utf8"));
     assert.equal(record.state, "working");
     assert.equal(record.title, "Fais le ménage");
+  });
+
+  it("marque une conversation de review jusqu'au prochain message qui n'en est pas une", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "eddy-hook-"));
+    const activity = () => JSON.parse(fs.readFileSync(path.join(directory, "s7.json"), "utf8")).activity;
+    runHook("prompt", { session_id: "s7", cwd: directory, prompt: "/code-review" }, directory);
+    assert.equal(activity(), "review");
+    runHook("stop", { session_id: "s7", cwd: directory }, directory);
+    assert.equal(activity(), "review");
+    runHook("prompt", { session_id: "s7", cwd: directory, prompt: "Corrige le premier point" }, directory);
+    assert.equal(activity(), "");
+  });
+
+  it("marque la session de rafraîchissement pour que le serveur la masque", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "eddy-hook-"));
+    const wrapped = '<scheduled-task name="eddy-refresh-usage-connecteurs">\nThis is an automated run of a scheduled task.\n\n[eddy-refresh] Mets à jour les instantanés\n</scheduled-task>';
+    runHook("prompt", { session_id: "s8", cwd: directory, prompt: wrapped }, directory);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(directory, "s8.json"), "utf8")).activity, "refresh");
+    runHook("prompt", { session_id: "s9", cwd: directory, prompt: "Corrige le bug du login" }, directory);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(directory, "s9.json"), "utf8")).activity, "");
   });
 
   it("garde l'état précédent sur une notification d'inactivité", () => {

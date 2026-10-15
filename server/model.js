@@ -10,6 +10,8 @@ const ROOM_ACTIONS = {
   meet: "Aucune, les agents travaillent ensemble.",
 };
 
+const REVIEW_ACTION = "Lire la review de Claude.";
+
 const MEETING_MIN_AGENTS = 2;
 const MAX_AGENTS_PER_SESSION = 8;
 const DEFAULT_AGENT_MAX_AGE_MS = 30 * 60 * 1000;
@@ -47,8 +49,11 @@ const describeMergeRequest = (mergeRequest) => `${mergeRequest.repo} !${mergeReq
 export const activeAgents = (session, now, maxAgeMs = DEFAULT_AGENT_MAX_AGE_MS) =>
   (Array.isArray(session.subagents) ? session.subagents : []).filter((agent) => now - agent.startedAt <= maxAgeMs).slice(0, MAX_AGENTS_PER_SESSION);
 
+const isReview = (session) => session.activity === "review";
+
 const sessionRoom = (session, linkedMergeRequest, classification, agentCount) => {
   if (session.state === "needs_reply") return "acc";
+  if (isReview(session)) return "rev";
   if (agentCount >= MEETING_MIN_AGENTS) return "meet";
   if (agentCount > 0 || session.state === "working") return "open";
   return linkedMergeRequest ? classification.room : "arch";
@@ -58,6 +63,7 @@ const sessionWhy = (session, linkedMergeRequest, classification, agentCount) => 
   if (session.state === "needs_reply") {
     return session.lastMessage ? `Claude attend votre réponse : ${truncate(session.lastMessage, WHY_LENGTH)}` : "Claude attend votre réponse.";
   }
+  if (isReview(session)) return session.state === "working" ? "Vous avez demandé une review : Claude la fait, la conversation est en relecture." : "Vous avez demandé une review : la conversation reste en relecture.";
   if (agentCount >= MEETING_MIN_AGENTS) return `Claude a lancé ${agentCount} agents : ils se réunissent en salle de réunion.`;
   if (agentCount > 0) return "Claude a lancé un agent et attend son résultat.";
   if (session.state === "working") return "Claude travaille sur la tâche en cours.";
@@ -77,7 +83,9 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
   const linkedKeys = new Set();
   const characters = [];
 
-  sessions.slice(0, MAX_SESSIONS).forEach((session) => {
+  const visibleSessions = sessions.filter((session) => session.activity !== "refresh");
+
+  visibleSessions.slice(0, MAX_SESSIONS).forEach((session) => {
     const linked = session.branch ? byBranch.get(session.branch) : undefined;
     const classification = linked ? classifyMergeRequest(linked, byKey) : null;
     const agents = activeAgents(session, now, agentMaxAgeMs);
@@ -93,11 +101,11 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
       title: session.title || sessionName(session),
       why: sessionWhy(session, linked, classification, agents.length),
       mr: mergeRequestLine,
-      action: ROOM_ACTIONS[room],
+      action: room === "rev" && isReview(session) ? REVIEW_ACTION : ROOM_ACTIONS[room],
       url: linked?.url ?? "",
       tint: TINTS[hashString(session.sessionId) % TINTS.length],
     });
-    const agentRoom = agents.length >= MEETING_MIN_AGENTS ? "meet" : "open";
+    const agentRoom = room === "rev" && isReview(session) ? "rev" : agents.length >= MEETING_MIN_AGENTS ? "meet" : "open";
     agents.forEach((agent, index) => {
       const label = agent.label || `Agent ${index + 1}`;
       characters.push({
@@ -107,9 +115,9 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
         room: agentRoom,
         name: truncate(label, AGENT_NAME_LENGTH),
         title: `Agent : ${label}`,
-        why: `Agent lancé par « ${sessionName(session)} »${agentRoom === "meet" ? ", en réunion avec les autres agents" : ""}.`,
+        why: `Agent lancé par « ${sessionName(session)} »${agentRoom === "meet" ? ", en réunion avec les autres agents" : agentRoom === "rev" ? ", pour la review" : ""}.`,
         mr: mergeRequestLine,
-        action: ROOM_ACTIONS[agentRoom],
+        action: agentRoom === "rev" ? REVIEW_ACTION : ROOM_ACTIONS[agentRoom],
         url: "",
         tint: TINTS[hashString(`${session.sessionId}${agent.id}`) % TINTS.length],
       });
