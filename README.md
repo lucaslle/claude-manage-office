@@ -22,7 +22,7 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 
 Quand une session lance des agents, chacun apparaît comme un petit robot. À partir de deux agents actifs, la session et ses agents se retrouvent en salle de réunion ; avec un seul agent, ils restent à l'open space. Tant qu'un agent travaille, la session ne retourne jamais aux archives, même si son tour de parole est terminé. Elle ne rejoint les archives (ou sa MR) qu'une fois tous ses agents terminés. Si elle attend une réponse de votre part, elle va à l'accueil, et ses agents restent en réunion.
 
-Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge.
+Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge. Une conversation que vous videz avec `/clear` trépigne un instant, puis quitte les bureaux par la porte d'entrée de l'accueil, en la claquant.
 
 Quand une session attend une réponse, elle reste à l'accueil même si sa MR est prête : c'est vous qui bloquez.
 

@@ -6,6 +6,11 @@ import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, GATE_LOCAL, ro
 import { buildRobotModel } from "./robot-model.js";
 
 const WALK_SPEED = 2.8;
+const STORM_SPEED_RATIO = 1.7;
+const FUME_SECONDS = 0.9;
+const EXIT_INSIDE_DISTANCE = 1.4;
+const EXIT_OUTSIDE_DISTANCE = 1.8;
+const STORM_NOTE = "Conversation vidée : le robot quitte les bureaux en claquant la porte.";
 const APPROACH_DISTANCE = 1.4;
 const CELEBRATE_SECONDS = 1.5;
 const VANISH_SECONDS = 0.6;
@@ -86,7 +91,7 @@ const slotPosition = (roomId, slotIndex) => {
   return { x: roomCenters[roomId].x + slot.x, z: roomCenters[roomId].z + slot.z };
 };
 
-export const createCharacters = ({ scene, models }) => {
+export const createCharacters = ({ scene, models, exitDoor = null }) => {
   const ghostMaterial = new THREE.MeshStandardMaterial({
     color: 0x86b0ff,
     emissive: 0x2450b0,
@@ -187,6 +192,8 @@ export const createCharacters = ({ scene, models }) => {
       slot: 0,
       pose: "stand",
       path: [],
+      speed: 1,
+      storm: null,
       target: null,
       exiting: false,
       removeWhenGone: false,
@@ -331,7 +338,47 @@ export const createCharacters = ({ scene, models }) => {
     setBubble(character, null);
   };
 
+  const startStorming = (character) => {
+    const route = buildRoute(character.root.position.x, character.root.position.z, exitDoor.x + EXIT_INSIDE_DISTANCE, exitDoor.z);
+    route[route.length - 1].action = exitDoor.open;
+    character.path = [...route, { x: exitDoor.x, z: exitDoor.z }, { x: exitDoor.x - EXIT_OUTSIDE_DISTANCE, z: exitDoor.z }];
+    character.speed = STORM_SPEED_RATIO;
+    character.pose = "walk";
+    refreshLabelHeight(character);
+    playClip(character, "Storm", { fade: 0.2 });
+  };
+
+  const stormOut = (key, note) => {
+    const character = characters[key];
+    if (!character) return { ok: false, reason: "Personnage inconnu." };
+    if (character.gone) return { ok: false, reason: `${character.spec.name} est déjà parti.` };
+    if (character.spec.kind !== "robot" || !exitDoor) {
+      beginVanish(character);
+      return { ok: true };
+    }
+    releaseSlots(character);
+    character.path = [];
+    character.exiting = false;
+    character.removeWhenGone = true;
+    character.note = note ?? STORM_NOTE;
+    character.moved = true;
+    character.storm = { fume: FUME_SECONDS };
+    character.pose = "stand";
+    refreshLabelHeight(character);
+    setBubble(character, "💢");
+    character.bubbleInner.classList.add("bubble--angry");
+    playClip(character, "Fume", { fade: 0.2 });
+    return { ok: true };
+  };
+
   const arrive = (character, onChange) => {
+    if (character.storm) {
+      exitDoor.slam();
+      character.storm = null;
+      character.vanish = VANISH_SECONDS;
+      setBubble(character, null);
+      return;
+    }
     if (character.exiting) {
       character.celebrate = CELEBRATE_SECONDS;
       character.root.rotation.y = Math.PI;
@@ -356,16 +403,17 @@ export const createCharacters = ({ scene, models }) => {
     return true;
   };
 
-  const sync = (specs, { mergedKeys = [], immediate = false } = {}) => {
+  const sync = (specs, { mergedKeys = [], clearedKeys = [], immediate = false } = {}) => {
     const wanted = new Map(specs.map((spec) => [spec.key, spec]));
     order.slice().forEach((key) => {
       const character = characters[key];
-      if (wanted.has(key) || character.vanish > 0 || character.celebrate > 0) return;
+      if (wanted.has(key) || character.vanish > 0 || character.celebrate > 0 || character.storm) return;
       if (character.exiting) {
         character.removeWhenGone = true;
         return;
       }
       if (mergedKeys.includes(key)) exitThroughGate(key, "MR mergée : elle sort du bureau par le portique.", true);
+      else if (clearedKeys.includes(key)) stormOut(key, STORM_NOTE);
       else beginVanish(character);
     });
 
@@ -381,7 +429,7 @@ export const createCharacters = ({ scene, models }) => {
       }
       existing.spec = spec;
       existing.labelElement.textContent = spec.name;
-      if (existing.exiting || existing.vanish > 0) return;
+      if (existing.exiting || existing.vanish > 0 || existing.storm) return;
       const currentRoom = existing.target ? existing.target.room : existing.room;
       if (currentRoom !== spec.room && !moveTo(spec.key, spec.room, "").ok) countOverflow(spec.room);
     });
@@ -439,13 +487,19 @@ export const createCharacters = ({ scene, models }) => {
         return;
       }
 
+      if (character.storm?.fume > 0) {
+        character.storm.fume -= delta;
+        if (character.storm.fume <= 0) startStorming(character);
+        return;
+      }
+
       if (character.path.length > 0) {
         const waypoint = character.path[0];
         const position = character.root.position;
         const dx = waypoint.x - position.x;
         const dz = waypoint.z - position.z;
         const distance = Math.hypot(dx, dz);
-        const step = WALK_SPEED * delta;
+        const step = WALK_SPEED * character.speed * delta;
         if (distance > 0.02) {
           const wanted = Math.atan2(dx, dz);
           character.root.rotation.y += wrapAngle(wanted - character.root.rotation.y) * Math.min(1, delta * 10);
@@ -454,6 +508,7 @@ export const createCharacters = ({ scene, models }) => {
           position.x = waypoint.x;
           position.z = waypoint.z;
           character.path.shift();
+          waypoint.action?.();
           if (character.path.length === 0) arrive(character, onChange);
         } else {
           position.x += (dx / distance) * step;
@@ -495,7 +550,7 @@ export const createCharacters = ({ scene, models }) => {
       spec: character.spec,
       room: character.room,
       target: character.target?.room ?? null,
-      walking: character.path.length > 0 || character.celebrate > 0,
+      walking: character.path.length > 0 || character.celebrate > 0 || Boolean(character.storm),
       gone: character.gone,
       exiting: character.exiting,
       note: character.note,
@@ -514,6 +569,7 @@ export const createCharacters = ({ scene, models }) => {
     clear,
     moveTo,
     exitThroughGate,
+    stormOut,
     update,
     setSelected,
     describe,

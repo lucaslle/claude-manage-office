@@ -111,6 +111,7 @@ const run = async () => {
     branch: currentBranch(payload.cwd) || previous?.branch || "",
     title,
     state: resolveState(mode, payload, previous, lastText),
+    endReason: mode === "end" ? String(payload.reason ?? "") : "",
     activity: resolveActivity(mode, payload, previous),
     lastMessage: excerpt(lastText || previous?.lastMessage || "", MESSAGE_LENGTH),
     transcriptPath: payload.transcript_path ?? previous?.transcriptPath ?? "",

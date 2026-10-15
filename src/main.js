@@ -104,7 +104,7 @@ new ResizeObserver(resize).observe(stage);
 resize();
 
 const [world, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
-const crowd = createCharacters({ scene, models });
+const crowd = createCharacters({ scene, models, exitDoor: world.exitDoor });
 const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta") });
 const connectorsPanel = createConnectorsPanel({
   body: document.getElementById("connectors-body"),
@@ -113,6 +113,13 @@ const connectorsPanel = createConnectorsPanel({
 });
 const hud = createHud(document.getElementById("hud"));
 const effects = createEffects(scene);
+world.exitDoor.onSlam(() => {
+  const door = world.exitDoor;
+  effects.shake(0.3);
+  effects.gain({ x: door.x, y: 2.7, z: door.z }, "BAM !", "slam");
+  effects.burst({ x: door.x, y: 1.2, z: door.z }, 30, "dust");
+});
+const shakeOffset = new THREE.Vector3();
 const scorePanel = createScorePanel({ body: document.getElementById("score-body"), meta: document.getElementById("score-meta") });
 const scoreTracker = createScoreTracker({
   panel: scorePanel,
@@ -199,12 +206,15 @@ const animate = () => {
   const elapsed = clock.elapsedTime;
   crowd.update(delta, elapsed, ui.refreshPanel);
   effects.update(delta);
-  world.update(elapsed);
+  world.update(elapsed, delta);
   controls.update();
+  effects.shakeOffset(shakeOffset);
+  camera.position.add(shakeOffset);
   if (stage.clientWidth > 0 && stage.clientHeight > 0) {
     pipeline.render();
     labelRenderer.render(scene, camera);
   }
+  camera.position.sub(shakeOffset);
   adaptQuality(delta);
   requestAnimationFrame(animate);
 };

@@ -12,6 +12,11 @@ const PARTITION_HEIGHT = 2.2;
 const PARTITION_SILL = 0.85;
 const FRAME_SIZE = 0.07;
 const GLAZING_MULLIONS = 3;
+const EXIT_DOOR_HEIGHT = 2.3;
+const EXIT_DOOR_OPEN_ANGLE = -1.9;
+const EXIT_DOOR_OPEN_SPEED = 7;
+const EXIT_DOOR_SLAM_SPEED = 16;
+const EXIT_DOOR_WOBBLE = 0.14;
 
 const FLOORS = {
   acc: { color: "#d9bf98", kind: "wood" },
@@ -272,13 +277,37 @@ export const buildWorld = async (scene) => {
   };
 
   const edge = (index) => (index - 1.5) * ROOM_SIZE;
+  const exitDoorX = edge(0);
+  const exitDoorZ = roomCenters.acc.z + DOOR_ALONG;
+
+  const facadeWithDoor = (x, z1, z2, doorZ) => {
+    const halfGap = DOOR_WIDTH / 2;
+    facade(x, z1, x, doorZ - halfGap);
+    facade(x, doorZ + halfGap, x, z2);
+    wallSegment(x, doorZ - halfGap, x, doorZ + halfGap, EXIT_DOOR_HEIGHT, WALL_HEIGHT, 0.3, plasterMaterial);
+    [doorZ - halfGap, doorZ + halfGap].forEach((postZ) => addBox(world, 0.2, EXIT_DOOR_HEIGHT, 0.2, frameMaterial, x, EXIT_DOOR_HEIGHT / 2, postZ));
+  };
+
+  const buildExitDoor = (x, z) => {
+    const halfGap = DOOR_WIDTH / 2;
+    const width = DOOR_WIDTH - 0.16;
+    const pivot = new THREE.Group();
+    pivot.position.set(x, 0, z - halfGap + 0.08);
+    world.add(pivot);
+    addBox(pivot, 0.1, EXIT_DOOR_HEIGHT - 0.06, width, standardMaterial(0xd97757, { roughness: 0.55 }), 0, (EXIT_DOOR_HEIGHT - 0.06) / 2, width / 2);
+    addBox(pivot, 0.04, 0.9, 0.34, standardMaterial(0xf4ece2, { roughness: 0.7 }), -0.06, 1.5, width - 0.5);
+    addBox(pivot, 0.14, 0.05, 0.24, metalMaterial, -0.1, 1.05, width - 0.4);
+    return pivot;
+  };
+
   for (let lineIndex = 0; lineIndex < 4; lineIndex += 1) {
     for (let cellIndex = 0; cellIndex < 3; cellIndex += 1) {
       const start = edge(cellIndex);
       const end = edge(cellIndex + 1);
       const line = edge(lineIndex);
       if (lineIndex === 0) {
-        facade(line, start, line, end);
+        if (cellIndex === 0) facadeWithDoor(line, start, end, exitDoorZ);
+        else facade(line, start, line, end);
         facade(start, line, end, line);
       } else if (lineIndex === 3) {
         wallSegment(line, start, line, end, 0, 0.22, 0.2, frameMaterial);
@@ -416,7 +445,41 @@ export const buildWorld = async (scene) => {
   place("meet", "cactus_medium_B", { x: -4.4, z: 4.3 });
   place("meet", "lamp_standing", { x: 4.3, z: -4.3 });
 
-  const update = (elapsed) => animated.forEach((step) => step(elapsed));
+  const door = { pivot: buildExitDoor(exitDoorX, exitDoorZ), angle: 0, target: 0, slamming: false, wobble: 0, onSlam: null };
+  animated.push((elapsed, delta) => {
+    if (door.slamming) {
+      door.angle = Math.min(0, door.angle + EXIT_DOOR_SLAM_SPEED * delta);
+      if (door.angle >= 0) {
+        door.slamming = false;
+        door.wobble = EXIT_DOOR_WOBBLE;
+        door.onSlam?.();
+      }
+    } else if (door.wobble > 0.002) {
+      door.wobble *= Math.exp(-delta * 9);
+      door.angle = -Math.abs(Math.sin(elapsed * 42)) * door.wobble;
+    } else {
+      door.angle += (door.target - door.angle) * Math.min(1, delta * EXIT_DOOR_OPEN_SPEED);
+    }
+    door.pivot.rotation.y = door.angle;
+  });
+  const exitDoor = {
+    x: exitDoorX,
+    z: exitDoorZ,
+    open: () => {
+      door.target = EXIT_DOOR_OPEN_ANGLE;
+      door.slamming = false;
+    },
+    slam: () => {
+      door.target = 0;
+      door.wobble = 0;
+      door.slamming = true;
+    },
+    onSlam: (handler) => {
+      door.onSlam = handler;
+    },
+  };
+
+  const update = (elapsed, delta = 0) => animated.forEach((step) => step(elapsed, delta));
 
   const setRoomOverflow = (overflow) => {
     Object.entries(labelElements).forEach(([roomId, element]) => {
@@ -425,5 +488,5 @@ export const buildWorld = async (scene) => {
     });
   };
 
-  return { world, roomGroups, update, setRoomOverflow, gateBeam };
+  return { world, roomGroups, update, setRoomOverflow, gateBeam, exitDoor };
 };

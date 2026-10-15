@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { readSessions } from "./sessions.js";
+import { readRecentlyEnded, readSessions } from "./sessions.js";
 
 const HOUR = 3600 * 1000;
 const NOW = 1_800_000_000_000;
@@ -61,5 +61,28 @@ describe("readSessions", () => {
     const directory = makeDirectory();
     writeRecord(directory, "a.json", { sessionId: "a", updatedAt: NOW, state: "idle" });
     assert.equal(read([path.join(directory, "absent"), directory]).length, 1);
+  });
+});
+
+describe("readRecentlyEnded", () => {
+  const readCleared = (directories) => readRecentlyEnded(directories, { reason: "clear", maxAgeMs: 2 * 60 * 1000, now: NOW });
+
+  it("renvoie les sessions vidées récemment, et seulement elles", () => {
+    const directory = makeDirectory();
+    writeRecord(directory, "cleared.json", { sessionId: "cleared", updatedAt: NOW - 30 * 1000, state: "ended", endReason: "clear" });
+    writeRecord(directory, "logout.json", { sessionId: "logout", updatedAt: NOW - 30 * 1000, state: "ended", endReason: "logout" });
+    writeRecord(directory, "stale.json", { sessionId: "stale", updatedAt: NOW - 10 * 60 * 1000, state: "ended", endReason: "clear" });
+    writeRecord(directory, "alive.json", { sessionId: "alive", updatedAt: NOW, state: "working" });
+    writeRecord(directory, "legacy.json", { sessionId: "legacy", updatedAt: NOW, state: "ended" });
+    assert.deepEqual(
+      readCleared([directory]).map((record) => record.sessionId),
+      ["cleared"],
+    );
+  });
+
+  it("ne mélange pas les sessions vidées et les sessions vivantes", () => {
+    const directory = makeDirectory();
+    writeRecord(directory, "cleared.json", { sessionId: "cleared", updatedAt: NOW, state: "ended", endReason: "clear" });
+    assert.deepEqual(read([directory]), []);
   });
 });

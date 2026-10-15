@@ -5,7 +5,7 @@ import { createSessionRoutes } from "./api.js";
 import { createGitlabClient } from "./gitlab.js";
 import { loadConfig, rootDirectory } from "./config.js";
 import { buildCharacters } from "./model.js";
-import { detectWindowsSessionDirectories, detectWslSessionDirectories, readSessions } from "./sessions.js";
+import { detectWindowsSessionDirectories, detectWslSessionDirectories, readRecentlyEnded, readSessions } from "./sessions.js";
 import { readFreshestSnapshot } from "./snapshots.js";
 import { createScoreStore, scoreFilePath } from "./score-store.js";
 import { advanceScore, publicScore } from "../shared/scoring.js";
@@ -14,6 +14,7 @@ const SESSION_REFRESH_MS = 2000;
 const WSL_REFRESH_MS = 300000;
 const KEEPALIVE_MS = 25000;
 const MERGED_VISIBLE_MS = 120000;
+const CLEARED_VISIBLE_MS = 120000;
 const MIME_TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".bin": "application/octet-stream", ".png": "image/png", ".json": "application/json" };
 
 const config = loadConfig();
@@ -24,6 +25,7 @@ const detectOtherSystemDirectories = () => (config.detectWsl ? [...detectWslSess
 
 let wslDirectories = detectOtherSystemDirectories();
 let sessions = [];
+let cleared = [];
 let usage = null;
 let connectors = null;
 let mergeRequests = [];
@@ -51,6 +53,7 @@ const buildCurrentCharacters = () => buildCharacters({ sessions, mergeRequests, 
 const composeState = (characters) => ({
   characters,
   mergedKeys: recentlyMerged.map((entry) => entry.key),
+  clearedKeys: cleared.map((record) => `s:${record.sessionId}`),
   usage,
   connectors,
   score: publicScore(score),
@@ -90,6 +93,7 @@ const publish = () => {
 
 const refreshSessions = () => {
   sessions = readSessions(sessionDirectories(), { maxAgeMs: hoursToMs(config.sessionMaxAgeHours) });
+  cleared = readRecentlyEnded(sessionDirectories(), { reason: "clear", maxAgeMs: CLEARED_VISIBLE_MS });
   usage = readFreshestSnapshot(sessionDirectories(), "usage.json");
   connectors = readFreshestSnapshot(sessionDirectories(), "connectors.json");
   publish();

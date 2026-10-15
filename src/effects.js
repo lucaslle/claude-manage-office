@@ -8,25 +8,33 @@ const GRAVITY = 9.5;
 const FLOOR_Y = 0.05;
 const GAIN_SECONDS = 1.7;
 const GAIN_RISE_SPEED = 0.9;
-const COLORS = [0x4d8ef0, 0xe58a2f, 0x39b085, 0xb06ad8, 0xd8627f, 0xf0c33a];
+const SHAKE_SECONDS = 0.35;
+const PALETTES = {
+  confetti: [0x4d8ef0, 0xe58a2f, 0x39b085, 0xb06ad8, 0xd8627f, 0xf0c33a],
+  dust: [0x9aa3b0, 0xb8bfc8, 0x7d8794, 0xcfd4db],
+};
 
 export const createEffects = (scene) => {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const geometry = new THREE.BoxGeometry(0.16, 0.16, 0.04);
-  const materials = COLORS.map((color) => new THREE.MeshBasicMaterial({ color }));
+  const materials = Object.fromEntries(Object.entries(PALETTES).map(([name, colors]) => [name, colors.map((color) => new THREE.MeshBasicMaterial({ color }))]));
   const particles = Array.from({ length: PARTICLE_POOL }, (_, index) => {
-    const mesh = new THREE.Mesh(geometry, materials[index % materials.length]);
+    const mesh = new THREE.Mesh(geometry, materials.confetti[index % materials.confetti.length]);
     mesh.visible = false;
     scene.add(mesh);
     return { mesh, life: 0, velocity: new THREE.Vector3(), spin: new THREE.Vector3() };
   });
   const gains = [];
+  let shakeLeft = 0;
+  let shakeStrength = 0;
 
-  const burst = ({ x, y, z }, count = 40) => {
+  const burst = ({ x, y, z }, count = 40, palette = "confetti") => {
     if (reducedMotion) return;
+    const palette_materials = materials[palette] ?? materials.confetti;
     let spawned = 0;
     particles.forEach((particle) => {
       if (spawned >= count || particle.life > 0) return;
+      particle.mesh.material = palette_materials[spawned % palette_materials.length];
       spawned += 1;
       particle.life = PARTICLE_SECONDS;
       particle.mesh.visible = true;
@@ -52,6 +60,21 @@ export const createEffects = (scene) => {
     gains.push({ object, life: GAIN_SECONDS });
   };
 
+  const shake = (strength = 0.25) => {
+    if (reducedMotion) return;
+    shakeLeft = SHAKE_SECONDS;
+    shakeStrength = strength;
+  };
+
+  const shakeOffset = (target) => {
+    if (shakeLeft <= 0) {
+      target.set(0, 0, 0);
+      return;
+    }
+    const amplitude = shakeStrength * (shakeLeft / SHAKE_SECONDS);
+    target.set((Math.random() - 0.5) * amplitude, (Math.random() - 0.5) * amplitude, (Math.random() - 0.5) * amplitude);
+  };
+
   const updateParticle = (particle, delta) => {
     if (particle.life <= 0) return;
     particle.life -= delta;
@@ -74,6 +97,7 @@ export const createEffects = (scene) => {
   };
 
   const update = (delta) => {
+    if (shakeLeft > 0) shakeLeft -= delta;
     particles.forEach((particle) => updateParticle(particle, delta));
     for (let index = gains.length - 1; index >= 0; index -= 1) {
       const entry = gains[index];
@@ -86,5 +110,5 @@ export const createEffects = (scene) => {
     }
   };
 
-  return { burst, gain, update };
+  return { burst, gain, shake, shakeOffset, update };
 };
