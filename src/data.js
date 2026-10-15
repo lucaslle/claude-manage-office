@@ -1,3 +1,5 @@
+import { createScore, dayKey } from "../shared/scoring.js";
+
 export const ROOM_NAMES = {
   acc: "Accueil",
   open: "Open space",
@@ -9,6 +11,27 @@ export const ROOM_NAMES = {
   arch: "Archives",
   meet: "Salle de réunion",
 };
+
+const MINUTE_MS = 60000;
+
+export const buildDemoScore = (now = Date.now()) => ({
+  ...createScore(),
+  xp: 260,
+  totals: { reply: 9, quick_reply: 4, merge: 7, repair: 3, review: 11, ready: 2, inbox_zero: 1 },
+  streak: { days: 4, lastDay: dayKey(now) },
+  today: { day: dayKey(now), points: 35 },
+  combo: { count: 0, lastAt: 0, best: 3 },
+  badges: [
+    { id: "first_merge", at: now - 6 * 24 * 60 * MINUTE_MS },
+    { id: "inbox_zero", at: now - 2 * 24 * 60 * MINUTE_MS },
+  ],
+  events: [
+    { id: 3, type: "review", key: "", name: "core-web !318", points: 15, combo: 1, at: now - 48 * MINUTE_MS },
+    { id: 2, type: "merge", key: "", name: "core-api !402", points: 40, combo: 2, at: now - 3 * 60 * MINUTE_MS },
+    { id: 1, type: "reply", key: "", name: "Thème (archivé)", points: 10, combo: 1, at: now - 4 * 60 * MINUTE_MS },
+  ],
+  nextEventId: 4,
+});
 
 export const ROOM_LABELS = {
   acc: "Accueil",

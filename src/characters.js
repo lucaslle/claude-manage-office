@@ -503,6 +503,12 @@ export const createCharacters = ({ scene, models }) => {
     };
   };
 
+  const positionOf = (key) => {
+    const character = characters[key];
+    if (!character || character.gone) return null;
+    return { x: character.root.position.x, y: character.height, z: character.root.position.z };
+  };
+
   return {
     sync,
     clear,
@@ -511,6 +517,7 @@ export const createCharacters = ({ scene, models }) => {
     update,
     setSelected,
     describe,
+    positionOf,
     getPickables: () => pickables,
     keys: () => order.slice(),
   };

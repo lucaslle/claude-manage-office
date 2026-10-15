@@ -65,6 +65,27 @@ Cela ouvre le **mode démo** sur http://localhost:5173 : des données d'exemple 
 
 Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 
+### Score, niveaux et badges
+
+La carte « Score » en haut de la colonne de droite transforme votre réactivité en jeu. Chaque changement d'état que le tableau de bord observe rapporte des points, et les personnages concernés le fêtent dans la scène (confettis, étiquette « +25 » qui s'envole, message en bas de la scène).
+
+| Action observée | Points |
+| --- | --- |
+| Une conversation quitte l'accueil (vous avez répondu) | 10 |
+| … en moins de cinq minutes : réponse éclair | 25 |
+| Une MR sort de l'atelier (pipeline réparé, conflit résolu) | 20 |
+| Une MR passe de la relecture à la salle de merge | 15 |
+| Un brouillon devient prêt à relire | 5 |
+| Une MR est mergée | 40 |
+| Plus personne n'attend à l'accueil | 30 |
+
+- **Enchaînement** : des actions à moins de trois minutes d'intervalle se multiplient (×1,25, ×1,5, … jusqu'à ×2).
+- **Niveaux** : Stagiaire, Junior (100 XP), Confirmé (300), Senior (700), Lead (1 500), Architecte (3 000), Directeur (6 000), Légende (12 000).
+- **Série** : nombre de jours consécutifs avec au moins une action. Elle tombe à zéro après un jour sans rien.
+- **Badges** : premier merge, dix merges, cinq réponses éclair, cinq réparations, accueil vide, séries de cinq et vingt jours, cent points dans la journée, enchaînement de quatre actions.
+
+Le score est calculé par le serveur et enregistré dans `~/.claude/eddy-office/score.json` : il survit aux redémarrages et ne dépend pas du navigateur. En mode démo, il est calculé dans la page à partir d'un exemple et repart de zéro à chaque réinitialisation. Le serveur ne compte qu'un changement d'état qu'il a vu : un merge fait pendant qu'il est arrêté ne rapporte rien.
+
 ### Modale d'une conversation
 
 Un clic sur un robot ouvre une modale réduite à l'essentiel pour comprendre de quoi parle la conversation : son titre, l'action attendue, votre dernière demande, la dernière réponse de Claude (raccourcie, avec « Voir tout »), le pourcentage de contexte utilisé, et le moyen de la reprendre. Un clic sur une merge request ou sur un agent affiche ses informations et le lien GitLab.

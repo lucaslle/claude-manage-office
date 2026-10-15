@@ -8,7 +8,7 @@
     "live": "node server/index.js",
     "build": "vite build",
     "start": "vite build && node server/index.js --production",
-    "test": "node --test \"server/*.test.js\" \"hooks/*.test.js\"",
+    "test": "node --test \"server/*.test.js\" \"hooks/*.test.js\" \"shared/*.test.js\"",
     "hooks:install": "node hooks/install.mjs",
     "hooks:remove": "node hooks/install.mjs --remove",
     "statusline:install": "node hooks/install.mjs --statusline"

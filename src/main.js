@@ -13,6 +13,8 @@ import { createUsagePanel } from "./usage.js";
 import { createConnectorsPanel } from "./connectors.js";
 import { createHud } from "./hud.js";
 import { createSessionModal } from "./session-modal.js";
+import { createEffects } from "./effects.js";
+import { createScorePanel, createScoreTracker } from "./score.js";
 
 const SLOW_FRAME_SECONDS = 0.03;
 const SLOW_FRAME_WINDOW = 120;
@@ -110,7 +112,16 @@ const connectorsPanel = createConnectorsPanel({
   chooseButton: document.getElementById("connectors-choose"),
 });
 const hud = createHud(document.getElementById("hud"));
-const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: world.setRoomOverflow, usagePanel, connectorsPanel, hud });
+const effects = createEffects(scene);
+const scorePanel = createScorePanel({ body: document.getElementById("score-body"), meta: document.getElementById("score-meta") });
+const scoreTracker = createScoreTracker({
+  panel: scorePanel,
+  toasts: document.getElementById("toasts"),
+  crowd,
+  effects,
+  log: (message) => ui.log(message),
+});
+const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: world.setRoomOverflow, usagePanel, connectorsPanel, hud, scoreTracker });
 
 const sessionModal = createSessionModal({ isLive: ui.isLive });
 
@@ -187,6 +198,7 @@ const animate = () => {
   const delta = Math.min(clock.getDelta(), 0.05);
   const elapsed = clock.elapsedTime;
   crowd.update(delta, elapsed, ui.refreshPanel);
+  effects.update(delta);
   world.update(elapsed);
   controls.update();
   if (stage.clientWidth > 0 && stage.clientHeight > 0) {

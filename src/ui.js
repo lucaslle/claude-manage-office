@@ -1,4 +1,5 @@
-import { EVENTS, ROOM_NAMES, ROOM_ACTIONS, DEMO_SOURCES, buildDemoConnectors, buildDemoUsage } from "./data.js";
+import { EVENTS, ROOM_NAMES, ROOM_ACTIONS, DEMO_SOURCES, buildDemoConnectors, buildDemoScore, buildDemoUsage } from "./data.js";
+import { advanceScore, publicScore } from "../shared/scoring.js";
 
 const DEMO_INTERVAL_MS = 6500;
 const DEMO_START_DELAY_MS = 2500;
@@ -8,7 +9,7 @@ const DEMO_AGENT_TINTS = [0x4d8ef0, 0xe58a2f, 0x39b085, 0xb06ad8, 0xd8627f, 0x3f
 
 const cloneSpecs = (specs) => specs.map((spec) => ({ ...spec }));
 
-export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsPanel, hud }) => {
+export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsPanel, hud, scoreTracker }) => {
   const panelTitle = document.getElementById("panel-title");
   const panelRoom = document.getElementById("panel-room");
   const panelWhy = document.getElementById("panel-why");
@@ -30,6 +31,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
   let demoRunning = false;
   let liveMode = false;
   let currentDemoSpecs = cloneSpecs(demoSpecs);
+  let demoScore = buildDemoScore();
 
   const log = (message) => {
     const item = document.createElement("li");
@@ -78,10 +80,16 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     refreshPanel();
   };
 
-  const applyDemoSpecs = (mergedKeys = []) => {
-    const { overflow } = crowd.sync(currentDemoSpecs, { mergedKeys });
+  const scoreDemo = (merged = []) => {
+    demoScore = advanceScore(demoScore, { characters: currentDemoSpecs, merged, now: Date.now() }).score;
+    scoreTracker.apply(publicScore(demoScore));
+  };
+
+  const applyDemoSpecs = (merged = []) => {
+    const { overflow } = crowd.sync(currentDemoSpecs, { mergedKeys: merged.map((entry) => entry.key) });
     onOverflow?.(overflow);
     hud.update(currentDemoSpecs);
+    scoreDemo(merged);
   };
 
   const agentKeyPrefix = (parentKey) => `demo-agent:${parentKey}:`;
@@ -93,9 +101,9 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
       spec.action = ROOM_ACTIONS[eventDefinition.room];
       applyDemoSpecs();
     },
-    exit: (eventDefinition) => {
+    exit: (eventDefinition, spec) => {
       currentDemoSpecs = currentDemoSpecs.filter((candidate) => candidate.key !== eventDefinition.key);
-      applyDemoSpecs([eventDefinition.key]);
+      applyDemoSpecs([{ key: spec.key, name: spec.name }]);
     },
     agents: (eventDefinition, spec) => {
       spec.room = "meet";
@@ -144,6 +152,9 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     crowd.sync(currentDemoSpecs, { immediate: true });
     onOverflow?.({});
     hud.update(currentDemoSpecs);
+    demoScore = buildDemoScore();
+    scoreTracker.reset();
+    scoreDemo();
     demoStep = 0;
     if (!crowd.describe(selectedKey)) select(demoSpecs[0].key);
     else refreshPanel();
@@ -215,6 +226,8 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     connectorsPanel.render({ snapshot: buildDemoConnectors(), sources: DEMO_SOURCES, demo: true });
     hud.update(currentDemoSpecs);
     crowd.sync(currentDemoSpecs, { immediate: true });
+    scoreTracker.reset();
+    scoreDemo();
     select(demoSpecs[0].key);
     log("Situation de départ : 3 conversations attendent votre réponse.");
     setTimeout(() => {
@@ -232,6 +245,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     const { overflow } = crowd.sync(state.characters, { mergedKeys: state.mergedKeys });
     onOverflow?.(overflow);
     hud.update(state.characters);
+    scoreTracker.apply(state.score ?? null);
     usagePanel.render(state.usage ?? null);
     connectorsPanel.render({ snapshot: state.connectors ?? null, sources: state.sources });
     const gitlab = state.sources.gitlab;

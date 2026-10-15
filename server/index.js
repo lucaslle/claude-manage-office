@@ -7,6 +7,8 @@ import { loadConfig, rootDirectory } from "./config.js";
 import { buildCharacters } from "./model.js";
 import { detectWindowsSessionDirectories, detectWslSessionDirectories, readSessions } from "./sessions.js";
 import { readFreshestSnapshot } from "./snapshots.js";
+import { createScoreStore, scoreFilePath } from "./score-store.js";
+import { advanceScore, publicScore } from "../shared/scoring.js";
 
 const SESSION_REFRESH_MS = 2000;
 const WSL_REFRESH_MS = 300000;
@@ -26,6 +28,9 @@ let usage = null;
 let connectors = null;
 let mergeRequests = [];
 let recentlyMerged = [];
+const scoreStore = createScoreStore(scoreFilePath(config.sessionDirectories[0]));
+let score = scoreStore.load();
+let scoreSaveFailed = false;
 const gitlabConfigured = Boolean(config.gitlabToken && config.gitlabUrl);
 const gitlabStatus = {
   state: gitlabConfigured ? "pending" : "no-token",
@@ -41,11 +46,14 @@ const sessionRoutes = createSessionRoutes({
   findSession: (sessionId) => sessions.find((record) => record.sessionId === sessionId),
 });
 
-const buildState = () => ({
-  characters: buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000 }),
+const buildCurrentCharacters = () => buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000 });
+
+const composeState = (characters) => ({
+  characters,
   mergedKeys: recentlyMerged.map((entry) => entry.key),
   usage,
   connectors,
+  score: publicScore(score),
   sources: {
     sessions: { count: sessions.length, directories: sessionDirectories().length },
     gitlab: { ...gitlabStatus, mergeRequests: mergeRequests.length },
@@ -53,10 +61,28 @@ const buildState = () => ({
 });
 
 const clients = new Set();
+let lastState = null;
 let lastSerialized = "";
 
+const currentState = () => lastState ?? composeState(buildCurrentCharacters());
+
+const saveScore = () => {
+  try {
+    scoreStore.save(score);
+    scoreSaveFailed = false;
+  } catch (error) {
+    if (!scoreSaveFailed) process.stderr.write(`Score non enregistré : ${error.message}\n`);
+    scoreSaveFailed = true;
+  }
+};
+
 const publish = () => {
-  const serialized = JSON.stringify(buildState());
+  const characters = buildCurrentCharacters();
+  const merged = recentlyMerged.map((entry) => ({ key: entry.key, name: entry.name }));
+  score = advanceScore(score, { characters, merged, now: Date.now() }).score;
+  saveScore();
+  lastState = composeState(characters);
+  const serialized = JSON.stringify(lastState);
   if (serialized === lastSerialized) return;
   lastSerialized = serialized;
   clients.forEach((response) => response.write(`data: ${serialized}\n\n`));
@@ -78,14 +104,14 @@ const detectMerged = async (previous, current) => {
   const checks = await Promise.all(
     vanished.map(async (mergeRequest) => {
       try {
-        return (await gitlab.fetchMergeRequestState(mergeRequest.projectId, mergeRequest.iid)) === "merged" ? mergeRequest.key : null;
+        return (await gitlab.fetchMergeRequestState(mergeRequest.projectId, mergeRequest.iid)) === "merged" ? mergeRequest : null;
       } catch {
         return null;
       }
     }),
   );
   const now = Date.now();
-  checks.filter(Boolean).forEach((key) => recentlyMerged.push({ key, at: now }));
+  checks.filter(Boolean).forEach((mergeRequest) => recentlyMerged.push({ key: mergeRequest.key, name: `${mergeRequest.repo} !${mergeRequest.iid}`, at: now }));
 };
 
 const refreshGitlab = async () => {
@@ -116,10 +142,10 @@ const sendJson = (response, body) => {
 
 const handleApi = async (request, response) => {
   if (await sessionRoutes(request, response)) return undefined;
-  if (request.url.startsWith("/api/state")) return sendJson(response, buildState());
+  if (request.url.startsWith("/api/state")) return sendJson(response, currentState());
   if (request.url.startsWith("/api/stream")) {
     response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });
-    response.write(`data: ${JSON.stringify(buildState())}\n\n`);
+    response.write(`data: ${JSON.stringify(currentState())}\n\n`);
     clients.add(response);
     request.on("close", () => clients.delete(response));
     return undefined;
