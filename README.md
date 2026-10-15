@@ -1,5 +1,7 @@
 # claude-manage-office
 
+[![CI](https://github.com/lucaslle/claude-manage-office/actions/workflows/ci.yml/badge.svg)](https://github.com/lucaslle/claude-manage-office/actions/workflows/ci.yml)
+
 Un tableau de bord en 3D pour savoir, d'un coup d'œil, quelles conversations Claude Code attendent une réponse et quelles merge requests GitLab sont à relire ou à merger.
 
 L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un état, et chaque conversation ou merge request est un personnage qui marche d'une pièce à l'autre quand son état change.
@@ -129,10 +131,19 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 | `npm run dev` | Mode démo (Vite seul) |
 | `npm run live` | Serveur local, scène et données en direct |
 | `npm start` | Construit la scène puis sert la version de production |
-| `npm test` | Tests du serveur et des hooks |
+| `npm test` | Tests du serveur, des hooks, du moteur de score et des utilitaires de la scène |
 | `npm run hooks:install` | Installe les hooks dans les réglages Claude Code |
 | `npm run hooks:remove` | Retire les hooks (et la ligne d'état si elle a été installée) |
 | `npm run statusline:install` | Ajoute la ligne d'état qui alimente les limites d'usage |
+
+## Intégration continue
+
+Deux workflows GitHub Actions, dans `.github/workflows/` :
+
+- **CI** (`ci.yml`) : à chaque pull request et à chaque push sur `main`, les tests tournent sur Ubuntu et Windows avec Node 22 et 24, puis la scène est construite avec Vite et le dossier `dist` est conservé sept jours comme artefact. Un nouveau push sur la même branche annule l'exécution précédente.
+- **Release** (`release.yml`) : un tag `v*` (par exemple `git tag v0.3.0 && git push --tags`) relance les tests, construit la scène et publie une release GitHub avec une archive zip prête à lancer (`dist`, `server`, `shared`, `hooks`, `package.json`, `README.md`, `.env.example`). Après `npm ci --omit=dev` dans l'archive, `node server/index.js --production` sert la version construite.
+
+Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.glb` n'est pas redistribuable (voir plus bas), et le tableau de bord lit vos sessions locales, il n'a de sens que sur votre machine.
 
 ## Limites
 
