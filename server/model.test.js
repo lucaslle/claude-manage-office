@@ -198,3 +198,16 @@ describe("buildCharacters", () => {
     );
   });
 });
+
+describe("compactage", () => {
+  const now = 1_000_000_000;
+
+  it("publie un compactage en cours seulement s'il est récent, et la date du dernier compactage", () => {
+    const [fresh] = buildCharacters({ sessions: [makeSession({ compactingSince: now - 5000, compactedAt: now - 60000 })], mergeRequests: [], now });
+    assert.equal(fresh.compacting, true);
+    assert.equal(fresh.compactedAt, now - 60000);
+    const [stale] = buildCharacters({ sessions: [makeSession({ compactingSince: now - 10 * 60 * 1000 })], mergeRequests: [], now });
+    assert.equal(stale.compacting, false);
+    assert.equal(stale.compactedAt, 0);
+  });
+});

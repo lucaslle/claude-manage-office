@@ -22,7 +22,7 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 
 Quand une session lance des agents, chacun apparaît comme un petit robot. À partir de deux agents actifs, la session et ses agents se retrouvent en salle de réunion ; avec un seul agent, ils restent à l'open space. Tant qu'un agent travaille, la session ne retourne jamais aux archives, même si son tour de parole est terminé. Elle ne rejoint les archives (ou sa MR) qu'une fois tous ses agents terminés. Si elle attend une réponse de votre part, elle va à l'accueil, et ses agents restent en réunion.
 
-Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge. Une conversation que vous videz avec `/clear` trépigne un instant, puis quitte les bureaux par la porte d'entrée de l'accueil, en la claquant.
+Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge. Une conversation que vous videz avec `/clear` trépigne un instant, puis quitte les bureaux par la porte d'entrée de l'accueil, en la claquant. Une conversation que vous compactez avec `/compact` (ou que Claude Code compacte tout seul quand le contexte est plein) se fait tasser sur place le temps du résumé, puis reprend sa forme dans un petit nuage de poussière.
 
 Quand une session attend une réponse, elle reste à l'accueil même si sa MR est prête : c'est vous qui bloquez.
 
@@ -36,7 +36,7 @@ Claude Code ──hooks──▶ ~/.claude/eddy-office/sessions/*.json ─┐
 GitLab (API, jeton personnel) ────────────────────────────────┘
 ```
 
-- **Hooks** (`hooks/`) : à chaque message, fin de réponse, notification, lancement ou fin d'un agent, ou fin de session, un petit script écrit l'état de la session dans un fichier JSON, avec la liste de ses agents actifs. Il n'affiche rien et ne fait jamais échouer Claude Code.
+- **Hooks** (`hooks/`) : à chaque message, fin de réponse, notification, lancement ou fin d'un agent, début ou fin de compactage du contexte, ou fin de session, un petit script écrit l'état de la session dans un fichier JSON, avec la liste de ses agents actifs. Il n'affiche rien et ne fait jamais échouer Claude Code.
 - **Serveur** (`server/`) : il lit ces fichiers toutes les 2 secondes, interroge GitLab toutes les 60 secondes (MR créées par vous, assignées à vous ou dont vous êtes relecteur), calcule la pièce de chaque personnage et pousse les changements à la scène en direct. Il n'écoute que sur `127.0.0.1`.
 - **Scène** (`src/`) : Three.js, modèles glTF, éclairage et post-traitement à qualité réglable (la qualité baisse toute seule si l'animation devient saccadée). Sans serveur, elle passe en mode démo avec des données d'exemple.
 
@@ -58,7 +58,7 @@ Cela ouvre le **mode démo** sur http://localhost:5173 : des données d'exemple 
    ```bash
    npm run hooks:install
    ```
-   L'installeur sauvegarde votre `settings.json`, conserve vos autres hooks et peut être annulé avec `npm run hooks:remove`. Les hooks s'appliquent aux sessions lancées après l'installation.
+   L'installeur sauvegarde votre `settings.json`, conserve vos autres hooks et peut être annulé avec `npm run hooks:remove`. Les hooks s'appliquent aux sessions lancées après l'installation. Relancez la commande après une mise à jour qui ajoute des hooks (le compactage, par exemple) : les anciens sont remplacés.
 3. Lancez le serveur :
    ```bash
    npm run live

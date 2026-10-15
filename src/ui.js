@@ -42,6 +42,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
 
   const roomLabel = (state) => {
     if (state.gone) return "Parti (mergé)";
+    if (state.compacting && !state.walking) return `${ROOM_NAMES[state.room]} · compactage`;
     if (state.walking && state.target) return `En route vers ${ROOM_NAMES[state.target]}`;
     if (state.walking) return "En route vers la sortie";
     return ROOM_NAMES[state.room];
@@ -108,6 +109,10 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     clear: (eventDefinition, spec) => {
       currentDemoSpecs = currentDemoSpecs.filter((candidate) => candidate.key !== eventDefinition.key);
       applyDemoSpecs([], [spec.key]);
+    },
+    compact: (eventDefinition, spec) => {
+      spec.compactedAt = Date.now();
+      applyDemoSpecs();
     },
     agents: (eventDefinition, spec) => {
       spec.room = "meet";
@@ -246,8 +251,20 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
   };
 
   const announcedClears = new Set();
+  const compactionByKey = new Map();
+
+  const announceCompactions = (specs) => {
+    specs.forEach((spec) => {
+      const known = compactionByKey.get(spec.key);
+      compactionByKey.set(spec.key, { compacting: Boolean(spec.compacting), compactedAt: spec.compactedAt ?? 0 });
+      if (!known) return;
+      if (spec.compacting && !known.compacting) log(`« ${spec.name} » se compacte : le robot se tasse le temps du résumé.`);
+      if (spec.compactedAt && spec.compactedAt !== known.compactedAt) log(`« ${spec.name} » est compactée : le robot reprend sa forme.`);
+    });
+  };
 
   const applyLiveState = (state) => {
+    announceCompactions(state.characters);
     const clearedKeys = state.clearedKeys ?? [];
     clearedKeys
       .filter((key) => !announcedClears.has(key) && crowd.describe(key))
