@@ -1139,3 +1139,12 @@ body {
   font-size: 18px;
   letter-spacing: 0.04em;
 }
+
+.bubble--compact {
+  background: #5b6b80;
+  font-size: 13px;
+}
+
+.gain--compact {
+  background: #5b6b80;
+}

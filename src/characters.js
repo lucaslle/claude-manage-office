@@ -11,6 +11,15 @@ const FUME_SECONDS = 0.9;
 const EXIT_INSIDE_DISTANCE = 1.4;
 const EXIT_OUTSIDE_DISTANCE = 1.8;
 const STORM_NOTE = "Conversation vidée : le robot quitte les bureaux en claquant la porte.";
+const COMPACT_NOTE = "Conversation compactée : le robot se tasse le temps du résumé, puis reprend sa forme.";
+const COMPACT_SQUASH = 0.55;
+const COMPACT_STRETCH = 0.3;
+const COMPACT_BOUNCE = 0.2;
+const COMPACT_SQUASH_SECONDS = 0.35;
+const COMPACT_POP_SECONDS = 0.55;
+const COMPACT_BRIEF_HOLD_SECONDS = 0.3;
+const COMPACT_HOLD_MAX_SECONDS = 90;
+const COMPACT_BUBBLE = "🗜";
 const APPROACH_DISTANCE = 1.4;
 const CELEBRATE_SECONDS = 1.5;
 const VANISH_SECONDS = 0.6;
@@ -91,7 +100,7 @@ const slotPosition = (roomId, slotIndex) => {
   return { x: roomCenters[roomId].x + slot.x, z: roomCenters[roomId].z + slot.z };
 };
 
-export const createCharacters = ({ scene, models, exitDoor = null }) => {
+export const createCharacters = ({ scene, models, exitDoor = null, onCompacted = null }) => {
   const ghostMaterial = new THREE.MeshStandardMaterial({
     color: 0x86b0ff,
     emissive: 0x2450b0,
@@ -194,6 +203,9 @@ export const createCharacters = ({ scene, models, exitDoor = null }) => {
       path: [],
       speed: 1,
       storm: null,
+      compact: null,
+      compactedAt: spec.compactedAt ?? 0,
+      wasCompacting: Boolean(spec.compacting),
       target: null,
       exiting: false,
       removeWhenGone: false,
@@ -371,6 +383,68 @@ export const createCharacters = ({ scene, models, exitDoor = null }) => {
     return { ok: true };
   };
 
+  const startCompacting = (character, { brief = false } = {}) => {
+    if (character.compact) {
+      if (!brief) character.compact.holdLeft = COMPACT_HOLD_MAX_SECONDS;
+      return;
+    }
+    character.compact = { amount: 0, target: 1, holdLeft: brief ? COMPACT_BRIEF_HOLD_SECONDS : COMPACT_HOLD_MAX_SECONDS };
+    character.note = COMPACT_NOTE;
+    character.moved = true;
+    if (!character.storm) {
+      setBubble(character, COMPACT_BUBBLE);
+      character.bubbleInner.classList.add("bubble--compact");
+    }
+  };
+
+  const finishCompacting = (character) => {
+    if (character.compact) {
+      character.compact.target = 0;
+      return;
+    }
+    startCompacting(character, { brief: true });
+  };
+
+  const applyCompaction = (character, spec) => {
+    const previousAt = character.compactedAt;
+    character.compactedAt = spec.compactedAt ?? 0;
+    const compacting = Boolean(spec.compacting);
+    if (compacting && !character.wasCompacting) startCompacting(character);
+    character.wasCompacting = compacting;
+    if (character.compactedAt && character.compactedAt !== previousAt) finishCompacting(character);
+  };
+
+  const compactionScale = (compact) => {
+    const amount = compact.amount;
+    const bounce = compact.target === 0 ? Math.sin(Math.PI * (1 - amount)) * COMPACT_BOUNCE * (1 - amount) : 0;
+    return { xz: 1 + COMPACT_STRETCH * amount - bounce * 0.5, y: 1 - COMPACT_SQUASH * amount + bounce };
+  };
+
+  const updateCompaction = (character, delta, onChange) => {
+    const compact = character.compact;
+    if (compact.target === 1) {
+      compact.amount = Math.min(1, compact.amount + delta / COMPACT_SQUASH_SECONDS);
+      if (compact.amount >= 1) {
+        compact.holdLeft -= delta;
+        if (compact.holdLeft <= 0) compact.target = 0;
+      }
+    } else {
+      compact.amount = Math.max(0, compact.amount - delta / COMPACT_POP_SECONDS);
+    }
+    if (character.spawn <= 0 && character.vanish <= 0) {
+      const { xz, y } = compactionScale(compact);
+      character.root.scale.set(xz, y, xz);
+    }
+    if (compact.target !== 0 || compact.amount > 0) return;
+    character.compact = null;
+    character.note = "";
+    character.root.scale.setScalar(1);
+    character.bubbleInner.classList.remove("bubble--compact");
+    if (!character.storm) setBubble(character, character.path.length > 0 ? null : ROOM_BUBBLES[character.room]);
+    onCompacted?.(character.spec.key);
+    onChange(character.spec.key);
+  };
+
   const arrive = (character, onChange) => {
     if (character.storm) {
       exitDoor.slam();
@@ -429,6 +503,7 @@ export const createCharacters = ({ scene, models, exitDoor = null }) => {
       }
       existing.spec = spec;
       existing.labelElement.textContent = spec.name;
+      applyCompaction(existing, spec);
       if (existing.exiting || existing.vanish > 0 || existing.storm) return;
       const currentRoom = existing.target ? existing.target.room : existing.room;
       if (currentRoom !== spec.room && !moveTo(spec.key, spec.room, "").ok) countOverflow(spec.room);
@@ -457,6 +532,7 @@ export const createCharacters = ({ scene, models, exitDoor = null }) => {
       if (!character) return;
       if (character.gone) return;
       character.mixer.update(delta);
+      if (character.compact) updateCompaction(character, delta, onChange);
 
       if (character.spawn > 0) {
         character.spawn -= delta;
@@ -551,6 +627,7 @@ export const createCharacters = ({ scene, models, exitDoor = null }) => {
       room: character.room,
       target: character.target?.room ?? null,
       walking: character.path.length > 0 || character.celebrate > 0 || Boolean(character.storm),
+      compacting: Boolean(character.compact),
       gone: character.gone,
       exiting: character.exiting,
       note: character.note,

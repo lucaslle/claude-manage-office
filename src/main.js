@@ -104,7 +104,18 @@ new ResizeObserver(resize).observe(stage);
 resize();
 
 const [world, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
-const crowd = createCharacters({ scene, models, exitDoor: world.exitDoor });
+const COMPACT_DUST = 18;
+const crowd = createCharacters({
+  scene,
+  models,
+  exitDoor: world.exitDoor,
+  onCompacted: (key) => {
+    const position = crowd.positionOf(key);
+    if (!position) return;
+    effects.burst({ x: position.x, y: position.y * 0.5, z: position.z }, COMPACT_DUST, "dust");
+    effects.gain({ x: position.x, y: position.y + 0.9, z: position.z }, "Compacté !", "compact");
+  },
+});
 const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta") });
 const connectorsPanel = createConnectorsPanel({
   body: document.getElementById("connectors-body"),

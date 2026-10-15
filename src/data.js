@@ -353,6 +353,13 @@ export const EVENTS = [
     log: "« Portail » est terminée : elle va aux archives.",
   },
   {
+    label: "Vous compactez « Migration API » (/compact)",
+    type: "compact",
+    key: "liaison",
+    note: "Conversation compactée : le robot se tasse le temps du résumé, puis reprend sa forme.",
+    log: "« Migration API » est compactée : le robot se tasse, puis reprend sa forme.",
+  },
+  {
     label: "Vous videz « Validation » (/clear)",
     type: "clear",
     key: "a2",

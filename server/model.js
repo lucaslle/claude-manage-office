@@ -15,6 +15,7 @@ const REVIEW_ACTION = "Lire la review de Claude.";
 const MEETING_MIN_AGENTS = 2;
 const MAX_AGENTS_PER_SESSION = 8;
 const DEFAULT_AGENT_MAX_AGE_MS = 30 * 60 * 1000;
+const COMPACTING_MAX_AGE_MS = 2 * 60 * 1000;
 const AGENT_NAME_LENGTH = 18;
 
 const TINTS = [0x4d8ef0, 0xe58a2f, 0x39b085, 0xb06ad8, 0xd8627f, 0x3fb7c9, 0xc9a227, 0x7f8de8];
@@ -71,6 +72,8 @@ const sessionWhy = (session, linkedMergeRequest, classification, agentCount) => 
   return "Aucune question en attente, aucune MR ouverte.";
 };
 
+export const isCompacting = (session, now) => Number(session.compactingSince) > 0 && now - session.compactingSince <= COMPACTING_MAX_AGE_MS;
+
 const sessionName = (session) => truncate(session.title || session.cwd.split(/[\\/]/).pop() || "Session", NAME_LENGTH);
 
 export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), agentMaxAgeMs = DEFAULT_AGENT_MAX_AGE_MS }) => {
@@ -104,6 +107,8 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
       action: room === "rev" && isReview(session) ? REVIEW_ACTION : ROOM_ACTIONS[room],
       url: linked?.url ?? "",
       tint: TINTS[hashString(session.sessionId) % TINTS.length],
+      compacting: isCompacting(session, now),
+      compactedAt: Number(session.compactedAt) || 0,
     });
     const agentRoom = room === "rev" && isReview(session) ? "rev" : agents.length >= MEETING_MIN_AGENTS ? "meet" : "open";
     agents.forEach((agent, index) => {

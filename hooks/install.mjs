@@ -12,6 +12,8 @@ const EVENT_HOOKS = [
   { event: "SessionEnd", mode: "end" },
   { event: "PreToolUse", mode: "agent-start", matcher: "Task|Agent" },
   { event: "SubagentStop", mode: "agent-stop" },
+  { event: "PreCompact", mode: "compact" },
+  { event: "PostCompact", mode: "compacted" },
 ];
 
 const STATUSLINE_MARKER = "eddy-statusline.mjs";
