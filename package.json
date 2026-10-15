@@ -1,0 +1,21 @@
+{
+  "name": "claude-manage-office",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "live": "node server/index.js",
+    "build": "vite build",
+    "start": "vite build && node server/index.js --production",
+    "test": "node --test \"server/*.test.js\" \"hooks/*.test.js\"",
+    "hooks:install": "node hooks/install.mjs",
+    "hooks:remove": "node hooks/install.mjs --remove"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "6.0.7"
+  }
+}

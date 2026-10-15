@@ -1,0 +1,189 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { buildWorld } from "./world.js";
+import { createCharacters, loadCharacterModels } from "./characters.js";
+import { createRenderPipeline } from "./postfx.js";
+import { createUi } from "./ui.js";
+import { fetchLiveState, subscribeLive } from "./live.js";
+import { CHARACTERS } from "./data.js";
+
+const SLOW_FRAME_SECONDS = 0.03;
+const SLOW_FRAME_WINDOW = 120;
+const HOME_DIRECTION = new THREE.Vector3(20.5, 27, 29.5).normalize();
+const HOME_TARGET = new THREE.Vector3(0, 0.5, 0);
+const FIT_WIDTH_FACTOR = 67;
+const MIN_HOME_DISTANCE = 40;
+const MAX_HOME_DISTANCE = 95;
+
+const stage = document.getElementById("stage");
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const backgroundColor = () => new THREE.Color(darkQuery.matches ? "#2a3544" : "#e3e9f1");
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+stage.append(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = "stage__labels";
+stage.append(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = backgroundColor();
+darkQuery.addEventListener("change", () => {
+  scene.background = backgroundColor();
+});
+const environmentGenerator = new THREE.PMREMGenerator(renderer);
+scene.environment = environmentGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.4;
+
+const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 400);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 12;
+controls.maxDistance = 120;
+controls.minPolarAngle = 0.45;
+controls.maxPolarAngle = 1.25;
+controls.minAzimuthAngle = 0.05;
+controls.maxAzimuthAngle = Math.PI / 2 - 0.05;
+
+let cameraMovedByUser = false;
+controls.addEventListener("start", () => {
+  cameraMovedByUser = true;
+});
+
+const applyHomeView = () => {
+  const distance = Math.min(MAX_HOME_DISTANCE, Math.max(MIN_HOME_DISTANCE, FIT_WIDTH_FACTOR / camera.aspect));
+  camera.position.copy(HOME_DIRECTION).multiplyScalar(distance);
+  controls.target.copy(HOME_TARGET);
+  controls.update();
+};
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa4b2, 0.45));
+const sun = new THREE.DirectionalLight(0xfff4e5, 1.9);
+sun.position.set(-12, 28, 18);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -19;
+sun.shadow.camera.right = 19;
+sun.shadow.camera.top = 19;
+sun.shadow.camera.bottom = -19;
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 80;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.03;
+scene.add(sun);
+
+const pipeline = createRenderPipeline({ renderer, scene, camera, container: stage });
+
+const resize = () => {
+  const width = stage.clientWidth;
+  const height = stage.clientHeight;
+  if (width === 0 || height === 0) return;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  pipeline.resize();
+  labelRenderer.setSize(width, height);
+  if (!cameraMovedByUser) applyHomeView();
+};
+new ResizeObserver(resize).observe(stage);
+resize();
+
+const [world, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
+const crowd = createCharacters({ scene, models });
+const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: world.setRoomOverflow });
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const pickKey = (event) => {
+  const bounds = renderer.domElement.getBoundingClientRect();
+  pointer.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(crowd.getPickables(), false);
+  const visibleHit = hits.find((hit) => {
+    let node = hit.object;
+    while (node) {
+      if (!node.visible) return false;
+      node = node.parent;
+    }
+    return true;
+  });
+  return visibleHit ? visibleHit.object.userData.key : null;
+};
+
+let pressX = 0;
+let pressY = 0;
+renderer.domElement.addEventListener("pointerdown", (event) => {
+  pressX = event.clientX;
+  pressY = event.clientY;
+});
+renderer.domElement.addEventListener("pointerup", (event) => {
+  if (Math.abs(event.clientX - pressX) + Math.abs(event.clientY - pressY) > 6) return;
+  const key = pickKey(event);
+  if (key) ui.select(key);
+});
+let hoverPending = false;
+renderer.domElement.addEventListener("pointermove", (event) => {
+  if (hoverPending) return;
+  hoverPending = true;
+  requestAnimationFrame(() => {
+    renderer.domElement.style.cursor = pickKey(event) ? "pointer" : "grab";
+    hoverPending = false;
+  });
+});
+
+document.getElementById("reset-camera").addEventListener("click", () => {
+  cameraMovedByUser = false;
+  applyHomeView();
+});
+
+const qualitySelect = document.getElementById("quality");
+qualitySelect.addEventListener("change", () => pipeline.setQuality(qualitySelect.value));
+
+const clock = new THREE.Clock();
+let slowFrames = 0;
+let sampledFrames = 0;
+
+const adaptQuality = (delta) => {
+  sampledFrames += 1;
+  if (delta > SLOW_FRAME_SECONDS) slowFrames += 1;
+  if (sampledFrames < SLOW_FRAME_WINDOW) return;
+  const level = pipeline.getQuality();
+  if (slowFrames / sampledFrames > 0.6 && level !== "low") {
+    const lower = level === "high" ? "medium" : "low";
+    pipeline.setQuality(lower);
+    qualitySelect.value = lower;
+    ui.log(`Qualité réduite (${lower === "low" ? "légère" : "équilibrée"}) pour garder la fluidité.`);
+  }
+  slowFrames = 0;
+  sampledFrames = 0;
+};
+
+const animate = () => {
+  const delta = Math.min(clock.getDelta(), 0.05);
+  const elapsed = clock.elapsedTime;
+  crowd.update(delta, elapsed, ui.refreshPanel);
+  world.update(elapsed);
+  controls.update();
+  if (stage.clientWidth > 0 && stage.clientHeight > 0) {
+    pipeline.render();
+    labelRenderer.render(scene, camera);
+  }
+  adaptQuality(delta);
+  requestAnimationFrame(animate);
+};
+
+animate();
+
+const initialState = await fetchLiveState();
+if (initialState) {
+  ui.enterLiveMode(initialState);
+  subscribeLive({ onState: ui.applyLiveState, onLost: ui.markLiveLost });
+} else {
+  ui.enterDemoMode();
+}

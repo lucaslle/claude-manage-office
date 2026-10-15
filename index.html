@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bureaux Claude</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="topbar__title">Bureaux Claude</h1>
+      <div class="topbar__actions">
+        <span class="topbar__state" id="source-status"></span>
+        <div class="topbar__group" id="demo-controls">
+          <span class="topbar__state" id="demo-state">Démo automatique en cours</span>
+          <button class="button" id="demo-toggle" type="button">Pause</button>
+          <button class="button" id="reset-all" type="button">Réinitialiser</button>
+        </div>
+        <button class="button" id="reset-camera" type="button">Recentrer</button>
+        <label class="topbar__quality">
+          Qualité
+          <select class="select" id="quality">
+            <option value="low">Légère</option>
+            <option value="medium" selected>Équilibrée</option>
+            <option value="high">Haute</option>
+          </select>
+        </label>
+      </div>
+    </header>
+    <main class="layout">
+      <section class="stage" id="stage" aria-label="Scène 3D des bureaux"></section>
+      <aside class="side">
+        <section class="panel" aria-live="polite">
+          <div class="panel__head">
+            <h2 class="panel__title" id="panel-title"></h2>
+            <span class="badge" id="panel-room"></span>
+          </div>
+          <dl class="panel__list">
+            <dt>Pourquoi ici</dt>
+            <dd id="panel-why"></dd>
+            <dt>Merge request</dt>
+            <dd id="panel-mr"></dd>
+            <dt>Action</dt>
+            <dd id="panel-action"></dd>
+          </dl>
+          <a class="panel__link" id="panel-link" target="_blank" rel="noopener" hidden>Ouvrir dans GitLab</a>
+        </section>
+        <section class="panel" id="events-panel">
+          <h2 class="panel__label">Déclencher un changement d'état</h2>
+          <div class="events" id="events"></div>
+        </section>
+        <section class="panel">
+          <h2 class="panel__label">Journal</h2>
+          <ul class="log" id="log"></ul>
+        </section>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
