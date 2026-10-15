@@ -4,20 +4,24 @@ import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { GRID, ROOM_SIZE, DOOR_WIDTH, DOOR_ALONG, DOOR_ACROSS, roomCenters } from "./layout.js";
 import { ROOM_LABELS } from "./data.js";
 
-const FURNITURE_SCALE = 0.9;
-const WALL_HEIGHT = 3.4;
-const PARTITION_HEIGHT = 1.2;
+const FURNITURE_SCALE = 0.95;
+const WALL_HEIGHT = 3.3;
+const SILL_HEIGHT = 0.8;
+const PARTITION_HEIGHT = 2.2;
+const PARTITION_SILL = 0.85;
+const FRAME_SIZE = 0.07;
+const GLAZING_MULLIONS = 3;
 
 const FLOORS = {
-  acc: { color: "#d9b487", kind: "wood" },
-  open: { color: "#e2cba8", kind: "wood" },
-  rev: { color: "#b8b1d8", kind: "carpet" },
-  mrg: { color: "#bfd8b3", kind: "tile" },
-  wait: { color: "#ebc2ab", kind: "carpet" },
-  draft: { color: "#d2d6dc", kind: "tile" },
-  fix: { color: "#cfa9a9", kind: "tile" },
-  arch: { color: "#d2cbbb", kind: "wood" },
-  meet: { color: "#c3cde6", kind: "carpet" },
+  acc: { color: "#d9bf98", kind: "wood" },
+  open: { color: "#dcc4a1", kind: "wood" },
+  rev: { color: "#bcc3d8", kind: "carpet" },
+  mrg: { color: "#d3dad6", kind: "tile" },
+  wait: { color: "#d8c8bc", kind: "carpet" },
+  draft: { color: "#d7dade", kind: "tile" },
+  fix: { color: "#d4c3bd", kind: "tile" },
+  arch: { color: "#cfc2ab", kind: "wood" },
+  meet: { color: "#bfcbe0", kind: "carpet" },
 };
 
 const FURNITURE_FILES = [
@@ -32,21 +36,16 @@ const FURNITURE_FILES = [
   "couch",
   "armchair",
   "cabinet_medium",
+  "cabinet_medium_decorated",
   "cabinet_small",
-  "shelf_B_large_decorated",
   "shelf_A_big",
   "lamp_standing",
-  "lamp_table",
   "cactus_medium_A",
   "cactus_medium_B",
   "cactus_small_A",
   "rug_rectangle_A",
-  "rug_rectangle_stripes_A",
   "rug_oval_A",
-  "pictureframe_large_A",
-  "pictureframe_medium",
   "book_set",
-  "pillow_A",
 ];
 
 const shadeColor = (hex, amount) => {
@@ -64,39 +63,34 @@ const makeFloorTexture = (baseColor, kind) => {
   context.fillStyle = baseColor;
   context.fillRect(0, 0, size, size);
   if (kind === "wood") {
-    const plankCount = 8;
+    const plankCount = 10;
     const plankWidth = size / plankCount;
     for (let plank = 0; plank < plankCount; plank += 1) {
-      context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.07);
+      context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.05);
       context.fillRect(plank * plankWidth, 0, plankWidth, size);
-      context.fillStyle = "rgba(0,0,0,0.16)";
-      context.fillRect(plank * plankWidth, 0, 2, size);
+      context.fillStyle = "rgba(0,0,0,0.1)";
+      context.fillRect(plank * plankWidth, 0, 1.5, size);
       const cut = Math.random() * size;
-      context.fillRect(plank * plankWidth, cut, plankWidth, 2);
+      context.fillRect(plank * plankWidth, cut, plankWidth, 1.5);
     }
   } else if (kind === "carpet") {
-    for (let dot = 0; dot < 9000; dot += 1) {
-      context.fillStyle = `rgba(${Math.random() > 0.5 ? "255,255,255" : "0,0,0"},0.06)`;
+    for (let dot = 0; dot < 7000; dot += 1) {
+      context.fillStyle = `rgba(${Math.random() > 0.5 ? "255,255,255" : "0,0,0"},0.05)`;
       context.fillRect(Math.random() * size, Math.random() * size, 2, 2);
     }
-  } else if (kind === "tile") {
-    const tiles = 4;
+  } else {
+    const tiles = 5;
     const tileSize = size / tiles;
     for (let row = 0; row < tiles; row += 1) {
       for (let column = 0; column < tiles; column += 1) {
-        context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.035);
+        context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.025);
         context.fillRect(column * tileSize, row * tileSize, tileSize, tileSize);
       }
     }
-    context.fillStyle = "rgba(0,0,0,0.12)";
+    context.fillStyle = "rgba(0,0,0,0.09)";
     for (let line = 0; line < tiles; line += 1) {
-      context.fillRect(line * tileSize, 0, 2, size);
-      context.fillRect(0, line * tileSize, size, 2);
-    }
-  } else {
-    for (let blade = 0; blade < 14000; blade += 1) {
-      context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.12);
-      context.fillRect(Math.random() * size, Math.random() * size, 2, 5);
+      context.fillRect(line * tileSize, 0, 1.5, size);
+      context.fillRect(0, line * tileSize, size, 1.5);
     }
   }
   const texture = new THREE.CanvasTexture(canvas);
@@ -141,6 +135,14 @@ export const buildWorld = async (scene) => {
     return mesh;
   };
 
+  const addGlass = (parent, width, height, depth, material, x, y, z) => {
+    const mesh = addBox(parent, width, height, depth, material, x, y, z);
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.renderOrder = 2;
+    return mesh;
+  };
+
   const addCylinder = (parent, radiusTop, radiusBottom, height, material, x, y, z) => {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 20), material);
     mesh.position.set(x, y, z);
@@ -165,17 +167,40 @@ export const buildWorld = async (scene) => {
     return instance;
   };
 
-  const plasterMaterial = standardMaterial(0xf3f4f6, { roughness: 0.95 });
-  const partitionMaterial = standardMaterial(0xf8f9fa, { roughness: 0.9 });
-  const trimMaterial = standardMaterial(0xc4cad3, { roughness: 0.7 });
+  const plasterMaterial = standardMaterial(0xf5f6f8, { roughness: 0.95 });
+  const frameMaterial = standardMaterial(0x7d8794, { roughness: 0.45, metalness: 0.5 });
   const darkMaterial = standardMaterial(0x232830, { roughness: 0.5 });
-  const metalMaterial = standardMaterial(0x8d96a3, { roughness: 0.4, metalness: 0.6 });
-  const woodMaterial = standardMaterial(0xc89a62, { roughness: 0.7 });
+  const metalMaterial = standardMaterial(0x9aa3b0, { roughness: 0.4, metalness: 0.6 });
+  const glassMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xd6ebf5,
+    roughness: 0.08,
+    metalness: 0,
+    transparent: true,
+    opacity: 0.26,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const glazingMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xbfe0f4,
+    roughness: 0.06,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false,
+    emissive: 0x4f8fc4,
+    emissiveIntensity: 0.18,
+    side: THREE.DoubleSide,
+  });
 
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE * 3 + 1, 0.6, ROOM_SIZE * 3 + 1), standardMaterial(0xb7bec9, { roughness: 0.9 }));
+  const slabSize = ROOM_SIZE * 3 + 2.4;
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(slabSize, 0.6, slabSize), standardMaterial(0xc2c9d3, { roughness: 0.9 }));
   ground.position.y = -0.36;
   ground.receiveShadow = true;
   world.add(ground);
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE * 3 + 0.6, 0.08, ROOM_SIZE * 3 + 0.6), standardMaterial(0x3a4049, { roughness: 0.7 }));
+  plinth.position.y = -0.1;
+  plinth.receiveShadow = true;
+  world.add(plinth);
 
   GRID.flat().forEach((roomId) => {
     const group = new THREE.Group();
@@ -192,28 +217,56 @@ export const buildWorld = async (scene) => {
     labelElement.className = "room-label";
     labelElement.textContent = ROOM_LABELS[roomId];
     const labelObject = new CSS2DObject(labelElement);
-    labelObject.position.set(0, 0.05, ROOM_SIZE / 2 - 0.55);
+    labelObject.position.set(0, 0.05, ROOM_SIZE / 2 - 0.7);
     group.add(labelObject);
     labelElements[roomId] = labelElement;
   });
 
-  const wallSegment = (x1, z1, x2, z2, height, thickness, material) => {
+  const wallSegment = (x1, z1, x2, z2, bottom, top, thickness, material, glass = false) => {
     const length = Math.abs(x2 - x1) + Math.abs(z2 - z1);
-    if (length < 0.05) return;
+    if (length < 0.05) return null;
     const horizontal = z1 === z2;
-    addBox(world, horizontal ? length : thickness, height, horizontal ? thickness : length, material, (x1 + x2) / 2, height / 2, (z1 + z2) / 2);
+    const add = glass ? addGlass : addBox;
+    return add(world, horizontal ? length : thickness, top - bottom, horizontal ? thickness : length, material, (x1 + x2) / 2, (bottom + top) / 2, (z1 + z2) / 2);
+  };
+
+  const post = (x, z, height) => addBox(world, FRAME_SIZE, height, FRAME_SIZE, frameMaterial, x, height / 2, z);
+
+  const glassPartitionRun = (x1, z1, x2, z2) => {
+    wallSegment(x1, z1, x2, z2, 0, PARTITION_SILL, 0.14, plasterMaterial);
+    wallSegment(x1, z1, x2, z2, PARTITION_SILL, PARTITION_HEIGHT - FRAME_SIZE / 2, 0.04, glassMaterial, true);
+    wallSegment(x1, z1, x2, z2, PARTITION_SILL - FRAME_SIZE / 2, PARTITION_SILL + FRAME_SIZE / 2, FRAME_SIZE, frameMaterial);
   };
 
   const partition = (x1, z1, x2, z2) => {
     const halfGap = DOOR_WIDTH / 2;
+    wallSegment(x1, z1, x2, z2, PARTITION_HEIGHT - FRAME_SIZE, PARTITION_HEIGHT, FRAME_SIZE, frameMaterial);
     if (z1 === z2) {
       const doorX = (x1 + x2) / 2 + DOOR_ACROSS;
-      wallSegment(x1, z1, doorX - halfGap, z2, PARTITION_HEIGHT, 0.2, partitionMaterial);
-      wallSegment(doorX + halfGap, z1, x2, z2, PARTITION_HEIGHT, 0.2, partitionMaterial);
+      glassPartitionRun(x1, z1, doorX - halfGap, z2);
+      glassPartitionRun(doorX + halfGap, z1, x2, z2);
+      post(doorX - halfGap, z1, PARTITION_HEIGHT);
+      post(doorX + halfGap, z1, PARTITION_HEIGHT);
     } else {
       const doorZ = (z1 + z2) / 2 + DOOR_ALONG;
-      wallSegment(x1, z1, x2, doorZ - halfGap, PARTITION_HEIGHT, 0.2, partitionMaterial);
-      wallSegment(x1, doorZ + halfGap, x2, z2, PARTITION_HEIGHT, 0.2, partitionMaterial);
+      glassPartitionRun(x1, z1, x2, doorZ - halfGap);
+      glassPartitionRun(x1, doorZ + halfGap, x2, z2);
+      post(x1, doorZ - halfGap, PARTITION_HEIGHT);
+      post(x1, doorZ + halfGap, PARTITION_HEIGHT);
+    }
+  };
+
+  const facade = (x1, z1, x2, z2) => {
+    wallSegment(x1, z1, x2, z2, 0, SILL_HEIGHT, 0.3, plasterMaterial);
+    wallSegment(x1, z1, x2, z2, SILL_HEIGHT, WALL_HEIGHT - 0.25, 0.08, glazingMaterial, true);
+    wallSegment(x1, z1, x2, z2, WALL_HEIGHT - 0.25, WALL_HEIGHT, 0.3, plasterMaterial);
+    wallSegment(x1, z1, x2, z2, SILL_HEIGHT - 0.05, SILL_HEIGHT + 0.05, 0.34, frameMaterial);
+    const horizontal = z1 === z2;
+    for (let mullion = 0; mullion <= GLAZING_MULLIONS; mullion += 1) {
+      const ratio = mullion / GLAZING_MULLIONS;
+      const x = horizontal ? x1 + (x2 - x1) * ratio : x1;
+      const z = horizontal ? z1 : z1 + (z2 - z1) * ratio;
+      addBox(world, horizontal ? FRAME_SIZE : 0.14, WALL_HEIGHT - SILL_HEIGHT, horizontal ? 0.14 : FRAME_SIZE, frameMaterial, x, (WALL_HEIGHT + SILL_HEIGHT) / 2, z);
     }
   };
 
@@ -224,27 +277,22 @@ export const buildWorld = async (scene) => {
       const end = edge(cellIndex + 1);
       const line = edge(lineIndex);
       if (lineIndex === 0) {
-        wallSegment(line, start, line, end, WALL_HEIGHT, 0.3, plasterMaterial);
-        wallSegment(start, line, end, line, WALL_HEIGHT, 0.3, plasterMaterial);
+        facade(line, start, line, end);
+        facade(start, line, end, line);
       } else if (lineIndex === 3) {
-        wallSegment(line, start, line, end, 0.3, 0.25, trimMaterial);
-        wallSegment(start, line, end, line, 0.3, 0.25, trimMaterial);
+        wallSegment(line, start, line, end, 0, 0.22, 0.2, frameMaterial);
+        wallSegment(start, line, end, line, 0, 0.22, 0.2, frameMaterial);
       } else {
         partition(line, start, line, end);
         partition(start, line, end, line);
       }
     }
   }
-
-  const windowMaterial = new THREE.MeshStandardMaterial({ color: 0xcfe6f7, roughness: 0.15, metalness: 0.1, emissive: 0x6fa4d1, emissiveIntensity: 0.35 });
-  for (let cellIndex = 0; cellIndex < 3; cellIndex += 1) {
-    const middle = (edge(cellIndex) + edge(cellIndex + 1)) / 2;
-    [-1.7, 1.7].forEach((offset) => {
-      addBox(world, 0.06, 1.5, 2.3, windowMaterial, edge(0) + 0.19, 2.0, middle + offset);
-      addBox(world, 2.3, 1.5, 0.06, windowMaterial, middle + offset, 2.0, edge(0) + 0.19);
-      addBox(world, 0.1, 0.08, 2.5, trimMaterial, edge(0) + 0.2, 1.22, middle + offset);
-      addBox(world, 2.5, 0.08, 0.1, trimMaterial, middle + offset, 1.22, edge(0) + 0.2);
-    });
+  for (let lineIndex = 0; lineIndex < 4; lineIndex += 1) {
+    for (let cellIndex = 0; cellIndex < 4; cellIndex += 1) {
+      const isFront = lineIndex === 3 || cellIndex === 3;
+      post(edge(cellIndex), edge(lineIndex), isFront ? 0.22 : lineIndex === 0 || cellIndex === 0 ? WALL_HEIGHT : PARTITION_HEIGHT);
+    }
   }
 
   const addMonitor = (roomId, x, z, ry) => {
@@ -260,102 +308,110 @@ export const buildWorld = async (scene) => {
     roomGroups[roomId].add(group);
   };
 
-  place("acc", "table_medium_long", { x: 0, z: -2.8, ry: 0 });
-  place("acc", "rug_rectangle_stripes_A", { x: 0, z: 0.9, ry: 0, scale: 1.1 });
-  place("acc", "couch", { x: -3.0, z: -0.2, ry: Math.PI / 2, scale: 0.8 });
-  place("acc", "lamp_standing", { x: 3.1, z: -3.0 });
-  place("acc", "cactus_medium_A", { x: -3.1, z: -3.1 });
-  place("acc", "pictureframe_large_A", { x: -1.5, z: -3.6, y: 2.0, scale: 1.1 });
-  addMonitor("acc", 0.6, -2.8, Math.PI);
+  const addWallScreen = (roomId, x, width, height, faceColor, emissive) => {
+    const frame = addBox(roomGroups[roomId], width, height, 0.1, darkMaterial, x, 2.1, -ROOM_SIZE / 2 + 0.16);
+    const face = addBox(roomGroups[roomId], width - 0.2, height - 0.2, 0.04, new THREE.MeshStandardMaterial({ color: faceColor, emissive, emissiveIntensity: 0.8, roughness: 0.2 }), x, 2.1, -ROOM_SIZE / 2 + 0.22);
+    frame.castShadow = false;
+    face.castShadow = false;
+  };
 
-  [-2.5, 0.2].forEach((deskZ) => {
-    [-1.9, 1.9].forEach((deskX) => {
+  // Les trajets traversent chaque pièce sur deux bandes : z entre 2.2 et 3.8 (passage d'une colonne à l'autre)
+  // et x entre -3.8 et -2.2 (passage d'une rangée à l'autre). Le mobilier reste en dehors.
+  place("acc", "table_medium_long", { x: -0.6, z: -3.4, ry: 0 });
+  addMonitor("acc", 0, -3.4, Math.PI);
+  place("acc", "book_set", { x: -1.4, z: -3.4, y: 0.78, scale: 0.8 });
+  place("acc", "couch", { x: 4.3, z: -2.2, ry: -Math.PI / 2, scale: 0.85 });
+  place("acc", "table_low", { x: 2.9, z: -2.2, ry: Math.PI / 2, scale: 0.7 });
+  place("acc", "rug_oval_A", { x: 0.6, z: 0.6, scale: 1.5 });
+  place("acc", "lamp_standing", { x: 4.3, z: -4.3 });
+  place("acc", "cactus_medium_A", { x: -4.4, z: 0.2 });
+  place("acc", "cactus_small_A", { x: 4.3, z: 4.3 });
+
+  [-3.4, -0.2].forEach((deskZ) => {
+    [-0.9, 2.4].forEach((deskX) => {
       place("open", "table_medium_long", { x: deskX, z: deskZ });
       place("open", "chair_A", { x: deskX, z: deskZ + 1.55, ry: Math.PI });
       addMonitor("open", deskX, deskZ, 0);
     });
   });
-  place("open", "cactus_medium_B", { x: 3.0, z: 3.0 });
-  place("open", "lamp_standing", { x: -3.1, z: 3.0 });
+  place("open", "cabinet_small", { x: -4.4, z: -4.0, ry: Math.PI / 2 });
+  place("open", "cactus_medium_B", { x: 4.3, z: 4.3 });
+  place("open", "lamp_standing", { x: -4.4, z: 4.3 });
 
-  place("rev", "table_medium_long", { x: 0, z: -0.2, ry: 0, scale: 1.0 });
+  place("rev", "table_medium_long", { x: 0.8, z: -0.4, ry: 0, scale: 1.05 });
+  [-0.3, 1.9].forEach((offset) => place("rev", "chair_B", { x: offset, z: 1.2, ry: Math.PI }));
+  place("rev", "chair_C", { x: -1.6, z: -0.4, ry: Math.PI / 2 });
+  place("rev", "chair_C", { x: 3.2, z: -0.4, ry: -Math.PI / 2 });
+  place("rev", "rug_rectangle_A", { x: 0.8, z: -0.4, scale: 1.7 });
+  addWallScreen("rev", 0.8, 3.6, 1.9, 0xa9c1ff, 0x3a58c0);
+  place("rev", "cactus_medium_A", { x: 4.3, z: 4.3 });
+
+  [-1.4, 1.4].forEach((offset) => addBox(roomGroups.mrg, 0.32, 2.8, 0.32, metalMaterial, offset, 1.4, -3.6));
+  const gateBeam = addBox(roomGroups.mrg, 3.1, 0.36, 0.36, new THREE.MeshStandardMaterial({ color: 0x4bbd6c, emissive: 0x1f8a42, emissiveIntensity: 1.1, roughness: 0.3 }), 0, 2.9, -3.6);
+  addBox(roomGroups.mrg, 2.0, 0.02, 8.0, standardMaterial(0xa3c391, { roughness: 0.9 }), 0, 0.01, 0.4);
+  for (let stripe = -3; stripe <= 3; stripe += 1) addBox(roomGroups.mrg, 0.12, 0.025, 0.6, standardMaterial(0xf6f8fa), 0, 0.02, stripe * 1.2 + 0.4);
+  place("mrg", "cactus_small_A", { x: 4.3, z: 4.3 });
+  place("mrg", "cactus_small_A", { x: -4.4, z: 4.3 });
+  place("mrg", "cabinet_small", { x: -4.4, z: -1.0, ry: Math.PI / 2 });
+
+  place("wait", "couch", { x: 0, z: -3.9, ry: 0, scale: 0.95 });
+  place("wait", "table_low", { x: 4.2, z: 1.2, ry: Math.PI / 2, scale: 0.7 });
+  place("wait", "lamp_standing", { x: 4.3, z: -4.3 });
+  place("wait", "cactus_medium_A", { x: -4.4, z: -4.3 });
+  const ropeMaterial = standardMaterial(0x2e343d, { roughness: 0.6 });
   [-1.0, 1.0].forEach((offset) => {
-    place("rev", "chair_B", { x: offset, z: 1.2, ry: Math.PI });
-  });
-  place("rev", "chair_C", { x: -2.2, z: -0.2, ry: Math.PI / 2 });
-  place("rev", "chair_C", { x: 2.2, z: -0.2, ry: -Math.PI / 2 });
-  place("rev", "rug_rectangle_A", { x: 0, z: -0.2, scale: 1.4 });
-  const screen = addBox(roomGroups.rev, 3.2, 1.7, 0.1, darkMaterial, 0, 2.1, -3.55);
-  const screenFace = addBox(roomGroups.rev, 3.0, 1.5, 0.04, new THREE.MeshStandardMaterial({ color: 0xa9c1ff, emissive: 0x3a58c0, emissiveIntensity: 0.8, roughness: 0.2 }), 0, 2.1, -3.49);
-  screen.castShadow = false;
-  screenFace.castShadow = false;
-
-  [-1.1, 1.1].forEach((offset) => addBox(roomGroups.mrg, 0.35, 2.6, 0.35, metalMaterial, offset, 1.3, -2.9));
-  const gateBeam = addBox(roomGroups.mrg, 2.9, 0.4, 0.4, new THREE.MeshStandardMaterial({ color: 0x4bbd6c, emissive: 0x1f8a42, emissiveIntensity: 1.1, roughness: 0.3 }), 0, 2.7, -2.9);
-  addBox(roomGroups.mrg, 1.8, 0.02, 5.6, standardMaterial(0x9cbc88, { roughness: 0.9 }), 0, 0.01, 0.2);
-  for (let stripe = -2; stripe <= 2; stripe += 1) addBox(roomGroups.mrg, 0.12, 0.025, 0.55, standardMaterial(0xf6f8fa), 0, 0.02, stripe * 1.1 + 0.2);
-  place("mrg", "cactus_small_A", { x: 3.0, z: 3.0 });
-  place("mrg", "cactus_small_A", { x: -3.0, z: 3.0 });
-
-  place("wait", "couch", { x: 0, z: -3.0, ry: 0, scale: 0.9 });
-  place("wait", "table_low", { x: -2.6, z: 0.4, ry: Math.PI / 2, scale: 0.7 });
-  place("wait", "lamp_standing", { x: 3.1, z: -3.0 });
-  [-0.9, 0.9].forEach((offset) => {
-    [-1.9, -0.2, 1.5, 3.0].forEach((posZ) => {
-      addCylinder(roomGroups.wait, 0.06, 0.09, 1.0, metalMaterial, offset, 0.5, posZ);
-      addCylinder(roomGroups.wait, 0.09, 0.09, 0.05, metalMaterial, offset, 1.02, posZ);
+    [-3.0, -1.4, 0.2, 1.8].forEach((posZ) => {
+      addCylinder(roomGroups.wait, 0.05, 0.08, 1.0, metalMaterial, offset, 0.5, posZ);
+      addCylinder(roomGroups.wait, 0.08, 0.08, 0.05, metalMaterial, offset, 1.02, posZ);
     });
-    [-1.9, -0.2, 1.5].forEach((posZ) => addBox(roomGroups.wait, 0.03, 0.05, 1.7, standardMaterial(0xc0392b), offset, 0.88, posZ + 0.85));
+    [-3.0, -1.4, 0.2].forEach((posZ) => addBox(roomGroups.wait, 0.03, 0.05, 1.5, ropeMaterial, offset, 0.9, posZ + 0.8));
   });
-  addBox(roomGroups.wait, 0.7, 1.5, 0.5, standardMaterial(0x3a4a63), 3.0, 0.75, -1.2);
-  addBox(roomGroups.wait, 0.5, 0.35, 0.03, new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xb58a12, emissiveIntensity: 0.9 }), 3.0, 1.15, -0.94);
+  addBox(roomGroups.wait, 0.7, 1.5, 0.5, standardMaterial(0x3a4a63), 3.8, 0.75, -1.6);
+  addBox(roomGroups.wait, 0.5, 0.35, 0.03, new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xb58a12, emissiveIntensity: 0.9 }), 3.8, 1.15, -1.34);
 
-  [-2.4, 0, 2.4].forEach((offset) => {
-    place("draft", "table_medium", { x: offset, z: -2.7, ry: 0, scale: 0.75 });
-    addBox(roomGroups.draft, 1.0, 0.02, 0.7, standardMaterial(0xffffff), offset, 0.78, -2.7);
-    place("draft", "chair_stool", { x: offset, z: -1.7, ry: 0, scale: 0.8 });
+  [-1.6, 0.8, 3.2].forEach((offset) => {
+    place("draft", "table_medium", { x: offset, z: -3.4, ry: 0, scale: 0.78 });
+    addBox(roomGroups.draft, 1.0, 0.02, 0.7, standardMaterial(0xffffff), offset, 0.8, -3.4);
+    place("draft", "chair_stool", { x: offset, z: -2.3, ry: 0, scale: 0.8 });
   });
-  addBox(roomGroups.draft, 0.1, 1.7, 2.8, standardMaterial(0xf8f9fb, { roughness: 0.35 }), 3.4, 1.4, 0.4);
-  place("draft", "cactus_medium_A", { x: -3.1, z: 3.0 });
-  place("draft", "shelf_A_big", { x: -3.65, z: 0.4, ry: Math.PI / 2, y: 1.6, scale: 1.0 });
+  addBox(roomGroups.draft, 0.08, 1.7, 3.2, standardMaterial(0xf8f9fb, { roughness: 0.35 }), 4.5, 1.5, 0.2);
+  addBox(roomGroups.draft, 0.1, 1.8, 3.3, frameMaterial, 4.56, 1.5, 0.2);
+  place("draft", "shelf_A_big", { x: -4.75, z: 0.2, ry: Math.PI / 2, y: 1.6, scale: 1.0 });
+  place("draft", "cactus_medium_A", { x: -4.4, z: 4.3 });
 
-  place("fix", "table_medium_long", { x: 0, z: -3.0, ry: 0, scale: 1.0 });
-  place("fix", "cabinet_medium", { x: -2.9, z: -3.0, ry: 0 });
-  place("fix", "cabinet_small", { x: 2.9, z: -3.0, ry: 0 });
-  addBox(roomGroups.fix, 0.8, 0.4, 0.4, standardMaterial(0xd04a3a, { roughness: 0.5 }), 2.6, 0.2, 0.2);
-  addBox(roomGroups.fix, 0.4, 0.06, 0.06, metalMaterial, -0.6, 1.0, -3.0);
-  addBox(roomGroups.fix, 0.14, 0.24, 0.14, darkMaterial, 0.5, 1.12, -3.0);
-  addCylinder(roomGroups.fix, 0.06, 0.06, 1.8, metalMaterial, 3.2, 0.9, -1.5);
+  place("fix", "table_medium_long", { x: 0.4, z: -3.6, ry: 0, scale: 1.0 });
+  place("fix", "cabinet_medium", { x: -4.4, z: -1.2, ry: Math.PI / 2 });
+  place("fix", "cabinet_small", { x: 3.6, z: -3.7, ry: 0 });
+  addBox(roomGroups.fix, 0.8, 0.4, 0.4, standardMaterial(0xd04a3a, { roughness: 0.5 }), 3.2, 0.2, 0.6);
+  addBox(roomGroups.fix, 0.4, 0.06, 0.06, metalMaterial, -0.2, 1.0, -3.6);
+  addBox(roomGroups.fix, 0.14, 0.24, 0.14, darkMaterial, 0.9, 1.12, -3.6);
+  addCylinder(roomGroups.fix, 0.06, 0.06, 1.8, metalMaterial, 4.2, 0.9, -1.8);
   const beaconMaterial = new THREE.MeshStandardMaterial({ color: 0xe24b4a, emissive: 0xc01818, emissiveIntensity: 1.2, roughness: 0.3 });
-  const beacon = addCylinder(roomGroups.fix, 0.22, 0.22, 0.34, beaconMaterial, 3.2, 1.95, -1.5);
+  const beacon = addCylinder(roomGroups.fix, 0.22, 0.22, 0.34, beaconMaterial, 4.2, 1.95, -1.8);
   animated.push((elapsed) => {
     beacon.rotation.y = elapsed * 3;
     beaconMaterial.emissiveIntensity = 0.7 + Math.sin(elapsed * 6) * 0.5;
   });
+  place("fix", "cactus_small_A", { x: 4.3, z: 4.3 });
 
-  [-2.5, -0.85, 0.85, 2.5].forEach((offset) => place("arch", "cabinet_medium", { x: offset, z: -3.0, ry: 0 }));
-  place("arch", "shelf_B_large_decorated", { x: -1.7, z: -3.65, y: 2.0, scale: 1.0 });
-  place("arch", "shelf_B_large_decorated", { x: 1.7, z: -3.65, y: 2.0, scale: 1.0 });
-  [-2.5, 0, 2.5].forEach((offset) => place("arch", "armchair", { x: offset, z: 1.0, ry: 0.35, scale: 0.8 }));
-  [-1.25, 1.25].forEach((offset) => place("arch", "armchair", { x: offset, z: 2.8, ry: 0.35, scale: 0.8 }));
-  place("arch", "lamp_standing", { x: 3.2, z: -0.6 });
-  place("arch", "rug_rectangle_A", { x: 0, z: 1.4, scale: 1.6 });
+  [-1.5, 0.3, 2.1, 3.9].forEach((offset, index) => place("arch", index % 2 === 0 ? "cabinet_medium" : "cabinet_medium_decorated", { x: offset, z: -3.9, ry: 0 }));
+  [-1.6, 0.4, 2.4].forEach((offset) => place("arch", "armchair", { x: offset, z: 1.0, ry: 0.35, scale: 0.85 }));
+  [-0.6, 1.4].forEach((offset) => place("arch", "armchair", { x: offset, z: -1.4, ry: 0.35, scale: 0.85 }));
+  place("arch", "lamp_standing", { x: 4.3, z: -1.2 });
+  place("arch", "rug_rectangle_A", { x: 0.4, z: 0.0, scale: 1.9 });
 
-  place("meet", "table_medium_long", { x: 0, z: -0.2, ry: 0, scale: 1.0 });
-  place("meet", "rug_rectangle_A", { x: 0, z: -0.2, scale: 1.5 });
-  [-1.0, 0, 1.0].forEach((seatX) => {
-    place("meet", "chair_B", { x: seatX, z: -1.45, ry: 0 });
-    place("meet", "chair_B", { x: seatX, z: 1.05, ry: Math.PI });
+  place("meet", "table_medium_long", { x: 0.6, z: -0.4, ry: 0, scale: 1.1 });
+  place("meet", "rug_rectangle_A", { x: 0.6, z: -0.4, scale: 1.8 });
+  [-0.6, 0.6, 1.8].forEach((seatX) => {
+    place("meet", "chair_B", { x: seatX, z: -1.8, ry: 0 });
+    place("meet", "chair_B", { x: seatX, z: 1.0, ry: Math.PI });
   });
-  place("meet", "chair_B", { x: -2.0, z: -0.2, ry: Math.PI / 2 });
-  place("meet", "chair_B", { x: 2.0, z: -0.2, ry: -Math.PI / 2 });
-  const meetingScreen = addBox(roomGroups.meet, 3.4, 1.8, 0.1, darkMaterial, 0, 2.15, -3.55);
-  const meetingScreenFace = addBox(roomGroups.meet, 3.2, 1.6, 0.04, new THREE.MeshStandardMaterial({ color: 0xb7e3c4, emissive: 0x2f8f56, emissiveIntensity: 0.8, roughness: 0.2 }), 0, 2.15, -3.49);
-  meetingScreen.castShadow = false;
-  meetingScreenFace.castShadow = false;
-  place("meet", "cactus_medium_A", { x: 3.1, z: 3.0 });
-  place("meet", "cactus_medium_B", { x: -3.1, z: 3.0 });
-  place("meet", "lamp_standing", { x: 3.2, z: -3.0 });
+  place("meet", "chair_B", { x: -1.8, z: -0.4, ry: Math.PI / 2 });
+  place("meet", "chair_B", { x: 3.0, z: -0.4, ry: -Math.PI / 2 });
+  addWallScreen("meet", 0.6, 3.8, 2.0, 0xb7e3c4, 0x2f8f56);
+  place("meet", "cactus_medium_A", { x: 4.3, z: 4.3 });
+  place("meet", "cactus_medium_B", { x: -4.4, z: 4.3 });
+  place("meet", "lamp_standing", { x: 4.3, z: -4.3 });
 
   const update = (elapsed) => animated.forEach((step) => step(elapsed));
 

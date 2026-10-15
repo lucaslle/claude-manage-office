@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, GATE_LOCAL, roomCenters } from "./layout.js";
+import { buildRobotModel } from "./robot-model.js";
 
 const WALK_SPEED = 2.8;
 const APPROACH_DISTANCE = 1.4;
@@ -43,8 +44,8 @@ const loadModel = (url) =>
   });
 
 export const loadCharacterModels = async () => {
-  const [robot, mr] = await Promise.all([loadModel("/models/RobotExpressive.glb"), loadModel("/models/Xbot.glb")]);
-  return { robot, mr };
+  const mr = await loadModel("/models/Xbot.glb");
+  return { robot: buildRobotModel(), mr };
 };
 
 const wrapAngle = (angle) => {
@@ -140,7 +141,6 @@ export const createCharacters = ({ scene, models }) => {
         const tinted = materialList.map((material) => {
           const copy = material.clone();
           if (copy.name === "Main") copy.color.setHex(spec.tint);
-          copy.metalness = Math.min(copy.metalness, 0.25);
           ownedMaterials.push(copy);
           return copy;
         });

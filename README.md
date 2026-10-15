@@ -144,6 +144,6 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 
 ## Modèles 3D et licences
 
-- `RobotExpressive.glb` : Tomás Laulhé (Quaternius), CC0, tel que fourni par le dépôt three.js.
+- Les robots sont construits en code à partir de primitives three.js (`src/robot-model.js`), sans fichier externe.
 - `Xbot.glb` : mannequin Mixamo, soumis aux conditions d'Adobe. Il n'est pas redistribuable tel quel : gardez ce dépôt privé ou remplacez ce modèle.
 - Mobilier : KayKit Furniture Bits, CC0 (licence dans `public/models/furniture/`).
