@@ -4,13 +4,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const MARKER = "eddy-hook.mjs";
-const EVENT_MODES = {
-  UserPromptSubmit: "prompt",
-  Stop: "stop",
-  Notification: "notify",
-  SessionStart: "start",
-  SessionEnd: "end",
-};
+const EVENT_HOOKS = [
+  { event: "UserPromptSubmit", mode: "prompt" },
+  { event: "Stop", mode: "stop" },
+  { event: "Notification", mode: "notify" },
+  { event: "SessionStart", mode: "start" },
+  { event: "SessionEnd", mode: "end" },
+  { event: "PreToolUse", mode: "agent-start", matcher: "Task|Agent" },
+  { event: "SubagentStop", mode: "agent-stop" },
+];
 
 const hookScriptPath = path.join(path.dirname(fileURLToPath(import.meta.url)), MARKER).replace(/\\/g, "/");
 const nodeCommand = process.platform === "win32" ? "node" : `"${process.execPath}"`;
@@ -29,11 +31,15 @@ const withoutOurGroups = (groups) =>
 const settings = readSettings();
 settings.hooks = settings.hooks ?? {};
 
-Object.entries(EVENT_MODES).forEach(([eventName, mode]) => {
-  const remaining = withoutOurGroups(settings.hooks[eventName]);
-  if (!removeOnly) remaining.push({ hooks: [{ type: "command", command: `${nodeCommand} "${hookScriptPath}" ${mode}`, timeout: 10 }] });
-  if (remaining.length > 0) settings.hooks[eventName] = remaining;
-  else delete settings.hooks[eventName];
+EVENT_HOOKS.forEach(({ event, mode, matcher }) => {
+  const remaining = withoutOurGroups(settings.hooks[event]);
+  if (!removeOnly) {
+    const group = { hooks: [{ type: "command", command: `${nodeCommand} "${hookScriptPath}" ${mode}`, timeout: 10 }] };
+    if (matcher) group.matcher = matcher;
+    remaining.push(group);
+  }
+  if (remaining.length > 0) settings.hooks[event] = remaining;
+  else delete settings.hooks[event];
 });
 if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
 

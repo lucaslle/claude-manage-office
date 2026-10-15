@@ -32,7 +32,7 @@ const gitlabStatus = {
 const sessionDirectories = () => [...config.sessionDirectories, ...wslDirectories];
 
 const buildState = () => ({
-  characters: buildCharacters({ sessions, mergeRequests }),
+  characters: buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000 }),
   mergedKeys: recentlyMerged.map((entry) => entry.key),
   sources: {
     sessions: { count: sessions.length, directories: sessionDirectories().length },

@@ -17,7 +17,7 @@ const FLOORS = {
   draft: { color: "#d2d6dc", kind: "tile" },
   fix: { color: "#cfa9a9", kind: "tile" },
   arch: { color: "#d2cbbb", kind: "wood" },
-  ter: { color: "#a8cf8d", kind: "grass" },
+  meet: { color: "#c3cde6", kind: "carpet" },
 };
 
 const FURNITURE_FILES = [
@@ -341,15 +341,21 @@ export const buildWorld = async (scene) => {
   place("arch", "lamp_standing", { x: 3.2, z: -0.6 });
   place("arch", "rug_rectangle_A", { x: 0, z: 1.4, scale: 1.6 });
 
-  [[-2.2, -1.8], [2.4, -0.6], [-0.4, 2.2]].forEach(([treeX, treeZ]) => {
-    addCylinder(roomGroups.ter, 0.18, 0.26, 1.5, standardMaterial(0x7d5638, { roughness: 0.9 }), treeX, 0.75, treeZ);
-    const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 1), standardMaterial(0x5aa35e, { roughness: 0.85 }));
-    foliage.position.set(treeX, 2.3, treeZ);
-    foliage.castShadow = true;
-    roomGroups.ter.add(foliage);
+  place("meet", "table_medium_long", { x: 0, z: -0.2, ry: 0, scale: 1.0 });
+  place("meet", "rug_rectangle_A", { x: 0, z: -0.2, scale: 1.5 });
+  [-1.0, 0, 1.0].forEach((seatX) => {
+    place("meet", "chair_B", { x: seatX, z: -1.45, ry: 0 });
+    place("meet", "chair_B", { x: seatX, z: 1.05, ry: Math.PI });
   });
-  addBox(roomGroups.ter, 2.0, 0.14, 0.6, woodMaterial, 0.2, 0.5, -3.0);
-  addBox(roomGroups.ter, 2.0, 0.6, 0.12, woodMaterial, 0.2, 0.85, -3.28);
+  place("meet", "chair_B", { x: -2.0, z: -0.2, ry: Math.PI / 2 });
+  place("meet", "chair_B", { x: 2.0, z: -0.2, ry: -Math.PI / 2 });
+  const meetingScreen = addBox(roomGroups.meet, 3.4, 1.8, 0.1, darkMaterial, 0, 2.15, -3.55);
+  const meetingScreenFace = addBox(roomGroups.meet, 3.2, 1.6, 0.04, new THREE.MeshStandardMaterial({ color: 0xb7e3c4, emissive: 0x2f8f56, emissiveIntensity: 0.8, roughness: 0.2 }), 0, 2.15, -3.49);
+  meetingScreen.castShadow = false;
+  meetingScreenFace.castShadow = false;
+  place("meet", "cactus_medium_A", { x: 3.1, z: 3.0 });
+  place("meet", "cactus_medium_B", { x: -3.1, z: 3.0 });
+  place("meet", "lamp_standing", { x: 3.2, z: -3.0 });
 
   const update = (elapsed) => animated.forEach((step) => step(elapsed));
 

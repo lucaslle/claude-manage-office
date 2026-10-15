@@ -16,6 +16,9 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 | Brouillons | MR marquée Draft |
 | Atelier | Pipeline en échec, conflit ou rebase nécessaire |
 | Archives | Session terminée, sans question ni MR ouverte |
+| Salle de réunion | Une session a lancé plusieurs agents : elle s'y installe avec eux |
+
+Quand une session lance des agents, chacun apparaît comme un petit robot. À partir de deux agents actifs, la session et ses agents se retrouvent en salle de réunion ; avec un seul agent, ils restent à l'open space. Tant qu'un agent travaille, la session ne retourne jamais aux archives, même si son tour de parole est terminé. Elle ne rejoint les archives (ou sa MR) qu'une fois tous ses agents terminés. Si elle attend une réponse de votre part, elle va à l'accueil, et ses agents restent en réunion.
 
 Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge.
 
@@ -29,7 +32,7 @@ Claude Code ──hooks──▶ ~/.claude/eddy-office/sessions/*.json ─┐
 GitLab (API, jeton personnel) ────────────────────────────────┘
 ```
 
-- **Hooks** (`hooks/`) : à chaque message, fin de réponse, notification ou fin de session, un petit script écrit l'état de la session dans un fichier JSON. Il n'affiche rien et ne fait jamais échouer Claude Code.
+- **Hooks** (`hooks/`) : à chaque message, fin de réponse, notification, lancement ou fin d'un agent, ou fin de session, un petit script écrit l'état de la session dans un fichier JSON, avec la liste de ses agents actifs. Il n'affiche rien et ne fait jamais échouer Claude Code.
 - **Serveur** (`server/`) : il lit ces fichiers toutes les 2 secondes, interroge GitLab toutes les 60 secondes (MR créées par vous, assignées à vous ou dont vous êtes relecteur), calcule la pièce de chaque personnage et pousse les changements à la scène en direct. Il n'écoute que sur `127.0.0.1`.
 - **Scène** (`src/`) : Three.js, modèles glTF, éclairage et post-traitement à qualité réglable (la qualité baisse toute seule si l'animation devient saccadée). Sans serveur, elle passe en mode démo avec des données d'exemple.
 
@@ -69,6 +72,7 @@ Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 | `GITLAB_POLL_SECONDS` | `60` | Fréquence d'interrogation de GitLab |
 | `EDDY_PORT` | `5174` | Port du serveur local |
 | `EDDY_SESSION_MAX_AGE_HOURS` | `36` | Les sessions plus anciennes sont masquées |
+| `EDDY_AGENT_MAX_AGE_MINUTES` | `30` | Un agent sans nouvelle de fin au bout de ce délai est considéré comme terminé |
 | `EDDY_SESSION_DIRS` | (vide) | Dossiers de sessions supplémentaires, séparés par `;` |
 | `EDDY_DETECT_WSL` | `true` | Détecter automatiquement les sessions de l'autre système (Windows et WSL) |
 

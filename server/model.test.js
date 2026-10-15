@@ -94,6 +94,44 @@ describe("classifyMergeRequest", () => {
   });
 });
 
+describe("agents", () => {
+  const now = 1_000_000_000;
+  const agent = (id, ageMs = 1000) => ({ id, label: `Agent ${id}`, startedAt: now - ageMs });
+
+  it("envoie la session et ses agents en salle de réunion quand il y en a plusieurs", () => {
+    const session = makeSession({ state: "working", subagents: [agent("a"), agent("b"), agent("c")] });
+    const characters = buildCharacters({ sessions: [session], mergeRequests: [], now });
+    assert.deepEqual(
+      characters.map((character) => [character.agent === true, character.room]),
+      [[false, "meet"], [true, "meet"], [true, "meet"], [true, "meet"]],
+    );
+  });
+
+  it("n'archive jamais une session au repos tant que des agents travaillent", () => {
+    const session = makeSession({ state: "idle", subagents: [agent("a"), agent("b")] });
+    const [parent] = buildCharacters({ sessions: [session], mergeRequests: [], now });
+    assert.equal(parent.room, "meet");
+  });
+
+  it("garde une session au repos avec un seul agent à l'open space, pas aux archives", () => {
+    const session = makeSession({ state: "idle", subagents: [agent("a")] });
+    const characters = buildCharacters({ sessions: [session], mergeRequests: [], now });
+    assert.deepEqual(characters.map((character) => character.room), ["open", "open"]);
+  });
+
+  it("laisse l'accueil prioritaire quand la session attend une réponse", () => {
+    const session = makeSession({ state: "needs_reply", subagents: [agent("a"), agent("b")] });
+    const characters = buildCharacters({ sessions: [session], mergeRequests: [], now });
+    assert.deepEqual(characters.map((character) => character.room), ["acc", "meet", "meet"]);
+  });
+
+  it("ignore les agents trop anciens et archive de nouveau la session", () => {
+    const session = makeSession({ state: "idle", subagents: [agent("a", 31 * 60 * 1000), agent("b", 40 * 60 * 1000)] });
+    const characters = buildCharacters({ sessions: [session], mergeRequests: [], now });
+    assert.deepEqual(characters.map((character) => character.room), ["arch"]);
+  });
+});
+
 describe("buildCharacters", () => {
   it("met à l'accueil une session qui attend une réponse, même si sa MR est prête", () => {
     const mergeRequest = makeMergeRequest({ projectId: 1, iid: 1766, status: "mergeable", sourceBranch: "041-filter" });

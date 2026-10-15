@@ -82,6 +82,34 @@ describe("script de hook", () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(directory, "s3.json"), "utf8")).state, "working");
   });
 
+  it("compte les sous-agents lancés puis terminés sans changer l'état", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "eddy-hook-"));
+    const readRecord = () => JSON.parse(fs.readFileSync(path.join(directory, "s5.json"), "utf8"));
+    runHook("prompt", { session_id: "s5", cwd: directory, prompt: "Lance des agents" }, directory);
+    runHook("agent-start", { session_id: "s5", cwd: directory, tool_name: "Task", tool_use_id: "t1", tool_input: { description: "Explorer le code" } }, directory);
+    runHook("agent-start", { session_id: "s5", cwd: directory, tool_name: "Agent", tool_use_id: "t2", tool_input: { description: "Écrire les tests" } }, directory);
+    assert.deepEqual(readRecord().subagents.map((agent) => agent.label), ["Explorer le code", "Écrire les tests"]);
+    assert.equal(readRecord().state, "working");
+    runHook("agent-stop", { session_id: "s5", cwd: directory }, directory);
+    assert.deepEqual(readRecord().subagents.map((agent) => agent.label), ["Écrire les tests"]);
+    runHook("stop", { session_id: "s5", cwd: directory }, directory);
+    assert.equal(readRecord().subagents.length, 1);
+    assert.equal(readRecord().state, "idle");
+  });
+
+  it("ignore un outil qui n'est pas un agent", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "eddy-hook-"));
+    runHook("agent-start", { session_id: "s6", cwd: directory, tool_name: "Bash", tool_input: { command: "ls" } }, directory);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, "s6.json"), "utf8")).subagents, []);
+  });
+
+  it("vide les sous-agents quand la session se termine", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "eddy-hook-"));
+    runHook("agent-start", { session_id: "s7", cwd: directory, tool_name: "Task", tool_input: { description: "Tâche" } }, directory);
+    runHook("end", { session_id: "s7", cwd: directory }, directory);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, "s7.json"), "utf8")).subagents, []);
+  });
+
   it("passe en needs_reply sur une demande de permission", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "eddy-hook-"));
     runHook("notify", { session_id: "s4", cwd: directory, message: "Claude needs your permission to use Bash" }, directory);

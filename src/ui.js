@@ -4,6 +4,9 @@ const DEMO_INTERVAL_MS = 6500;
 const DEMO_START_DELAY_MS = 2500;
 const LOG_LIMIT = 5;
 const EMPTY_HINT = "Installez les hooks Claude Code (npm run hooks:install) et renseignez GITLAB_TOKEN dans .env.";
+const DEMO_AGENT_TINTS = [0x4d8ef0, 0xe58a2f, 0x39b085, 0xb06ad8, 0xd8627f, 0x3fb7c9];
+
+const cloneSpecs = (specs) => specs.map((spec) => ({ ...spec }));
 
 export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
   const panelTitle = document.getElementById("panel-title");
@@ -25,6 +28,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
   let demoStep = 0;
   let demoRunning = false;
   let liveMode = false;
+  let currentDemoSpecs = cloneSpecs(demoSpecs);
 
   const log = (message) => {
     const item = document.createElement("li");
@@ -73,22 +77,70 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
     refreshPanel();
   };
 
+  const applyDemoSpecs = (mergedKeys = []) => {
+    const { overflow } = crowd.sync(currentDemoSpecs, { mergedKeys });
+    onOverflow?.(overflow);
+  };
+
+  const agentKeyPrefix = (parentKey) => `demo-agent:${parentKey}:`;
+
+  const demoActions = {
+    move: (eventDefinition, spec) => {
+      spec.room = eventDefinition.room;
+      spec.why = eventDefinition.note;
+      spec.action = ROOM_ACTIONS[eventDefinition.room];
+      applyDemoSpecs();
+    },
+    exit: (eventDefinition) => {
+      currentDemoSpecs = currentDemoSpecs.filter((candidate) => candidate.key !== eventDefinition.key);
+      applyDemoSpecs([eventDefinition.key]);
+    },
+    agents: (eventDefinition, spec) => {
+      spec.room = "meet";
+      spec.why = eventDefinition.note;
+      spec.action = ROOM_ACTIONS.meet;
+      eventDefinition.agents.forEach((label, index) => {
+        currentDemoSpecs.push({
+          key: `${agentKeyPrefix(spec.key)}${index}`,
+          kind: "robot",
+          agent: true,
+          room: "meet",
+          name: label,
+          title: `Agent : ${label}`,
+          why: `Agent lancé par « ${spec.name} », en réunion avec les autres agents.`,
+          mr: spec.mr,
+          action: ROOM_ACTIONS.meet,
+          url: "",
+          tint: DEMO_AGENT_TINTS[(index + 1) % DEMO_AGENT_TINTS.length],
+        });
+      });
+      applyDemoSpecs();
+    },
+    "agents-done": (eventDefinition, spec) => {
+      currentDemoSpecs = currentDemoSpecs.filter((candidate) => !candidate.key.startsWith(agentKeyPrefix(spec.key)));
+      spec.room = eventDefinition.room;
+      spec.why = eventDefinition.note;
+      spec.action = ROOM_ACTIONS[eventDefinition.room];
+      applyDemoSpecs();
+    },
+  };
+
   const runEvent = (eventDefinition) => {
-    const outcome =
-      eventDefinition.type === "exit"
-        ? crowd.exitThroughGate(eventDefinition.key, eventDefinition.note)
-        : crowd.moveTo(eventDefinition.key, eventDefinition.room, eventDefinition.note);
-    if (outcome.ok) {
-      log(eventDefinition.log);
-      select(eventDefinition.key);
-    } else {
-      log(outcome.reason);
+    const spec = currentDemoSpecs.find((candidate) => candidate.key === eventDefinition.key);
+    if (!spec) {
+      log("Ce personnage n'est plus dans la scène.");
+      return;
     }
+    demoActions[eventDefinition.type](eventDefinition, spec);
+    log(eventDefinition.log);
+    select(eventDefinition.key);
   };
 
   const resetDemo = () => {
+    currentDemoSpecs = cloneSpecs(demoSpecs);
     crowd.clear();
-    crowd.sync(demoSpecs, { immediate: true });
+    crowd.sync(currentDemoSpecs, { immediate: true });
+    onOverflow?.({});
     demoStep = 0;
     if (!crowd.describe(selectedKey)) select(demoSpecs[0].key);
     else refreshPanel();
@@ -156,7 +208,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow }) => {
     demoControls.hidden = false;
     eventsPanel.hidden = false;
     setSourceStatus("Mode démo : serveur local non joignable (npm run live)", true);
-    crowd.sync(demoSpecs, { immediate: true });
+    crowd.sync(currentDemoSpecs, { immediate: true });
     select(demoSpecs[0].key);
     log("Situation de départ : 3 conversations attendent votre réponse.");
     setTimeout(() => {

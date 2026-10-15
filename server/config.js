@@ -35,6 +35,7 @@ export const loadConfig = () => {
     gitlabToken: value("GITLAB_TOKEN", ""),
     gitlabPollSeconds: Number(value("GITLAB_POLL_SECONDS", "60")),
     sessionMaxAgeHours: Number(value("EDDY_SESSION_MAX_AGE_HOURS", "36")),
+    agentMaxAgeMinutes: Number(value("EDDY_AGENT_MAX_AGE_MINUTES", "30")),
     sessionDirectories: [value("EDDY_STATE_DIR", path.join(os.homedir(), ".claude", "eddy-office", "sessions")), ...extraDirectories],
     detectWsl: value("EDDY_DETECT_WSL", "true") !== "false",
   };

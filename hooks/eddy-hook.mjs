@@ -4,9 +4,11 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { excerpt, findTitle, firstUserPrompt, lastAssistantText, looksLikeQuestion, readHeadLines, readTailLines } from "./transcript.mjs";
 
-const MODE_STATES = { prompt: "working", stop: "idle", notify: "needs_reply", start: "idle", end: "ended" };
+const MODE_STATES = { prompt: "working", stop: "idle", notify: "needs_reply", start: "idle", end: "ended", "agent-start": "working", "agent-stop": "working" };
+const AGENT_TOOL_NAMES = new Set(["Task", "Agent"]);
 const TITLE_LENGTH = 70;
 const MESSAGE_LENGTH = 320;
+const AGENT_LABEL_LENGTH = 60;
 
 const stateDirectory = () => process.env.EDDY_STATE_DIR ?? path.join(os.homedir(), ".claude", "eddy-office", "sessions");
 
@@ -49,7 +51,25 @@ const safeLines = (reader, filePath) => {
   }
 };
 
+const nextSubagents = (mode, payload, previous, now) => {
+  const current = Array.isArray(previous?.subagents) ? previous.subagents : [];
+  if (mode === "agent-start") {
+    if (payload.tool_name && !AGENT_TOOL_NAMES.has(payload.tool_name)) return current;
+    const input = payload.tool_input ?? {};
+    const label = excerpt(String(input.description ?? input.subagent_type ?? ""), AGENT_LABEL_LENGTH);
+    return [...current, { id: payload.tool_use_id ?? `${now}-${current.length}`, label, startedAt: now }];
+  }
+  if (mode === "agent-stop") {
+    const matchingIndex = payload.agent_id ? current.findIndex((agent) => agent.id === payload.agent_id) : -1;
+    const removedIndex = matchingIndex >= 0 ? matchingIndex : 0;
+    return current.filter((_, position) => position !== removedIndex);
+  }
+  if (mode === "start" || mode === "end") return [];
+  return current;
+};
+
 const resolveState = (mode, payload, previous, lastText) => {
+  if (mode === "agent-stop") return previous?.state ?? "working";
   if (mode === "stop") return looksLikeQuestion(lastText) ? "needs_reply" : "idle";
   if (mode !== "notify") return MODE_STATES[mode];
   const message = String(payload.message ?? "").toLowerCase();
@@ -87,6 +107,7 @@ const run = async () => {
     state: resolveState(mode, payload, previous, lastText),
     lastMessage: excerpt(lastText || previous?.lastMessage || "", MESSAGE_LENGTH),
     transcriptPath: payload.transcript_path ?? previous?.transcriptPath ?? "",
+    subagents: nextSubagents(mode, payload, previous, now),
     startedAt: previous?.startedAt ?? now,
     updatedAt: now,
   };
