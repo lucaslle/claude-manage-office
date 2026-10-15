@@ -1,5 +1,7 @@
 # claude-manage-office
 
+[![CI](https://github.com/lucaslle/claude-manage-office/actions/workflows/ci.yml/badge.svg)](https://github.com/lucaslle/claude-manage-office/actions/workflows/ci.yml)
+
 Un tableau de bord en 3D pour savoir, d'un coup d'œil, quelles conversations Claude Code attendent une réponse et quelles merge requests GitLab sont à relire ou à merger.
 
 L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un état, et chaque conversation ou merge request est un personnage qui marche d'une pièce à l'autre quand son état change.
@@ -20,7 +22,7 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 
 Quand une session lance des agents, chacun apparaît comme un petit robot. À partir de deux agents actifs, la session et ses agents se retrouvent en salle de réunion ; avec un seul agent, ils restent à l'open space. Tant qu'un agent travaille, la session ne retourne jamais aux archives, même si son tour de parole est terminé. Elle ne rejoint les archives (ou sa MR) qu'une fois tous ses agents terminés. Si elle attend une réponse de votre part, elle va à l'accueil, et ses agents restent en réunion.
 
-Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge.
+Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge. Une conversation que vous videz avec `/clear` trépigne un instant, puis quitte les bureaux par la porte d'entrée de l'accueil, en la claquant.
 
 Quand une session attend une réponse, elle reste à l'accueil même si sa MR est prête : c'est vous qui bloquez.
 
@@ -129,10 +131,19 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 | `npm run dev` | Mode démo (Vite seul) |
 | `npm run live` | Serveur local, scène et données en direct |
 | `npm start` | Construit la scène puis sert la version de production |
-| `npm test` | Tests du serveur et des hooks |
+| `npm test` | Tests du serveur, des hooks, du moteur de score et des utilitaires de la scène |
 | `npm run hooks:install` | Installe les hooks dans les réglages Claude Code |
 | `npm run hooks:remove` | Retire les hooks (et la ligne d'état si elle a été installée) |
 | `npm run statusline:install` | Ajoute la ligne d'état qui alimente les limites d'usage |
+
+## Intégration continue
+
+Deux workflows GitHub Actions, dans `.github/workflows/` :
+
+- **CI** (`ci.yml`) : à chaque pull request et à chaque push sur `main`, les tests tournent sur Ubuntu et Windows avec Node 22 et 24, puis la scène est construite avec Vite et le dossier `dist` est conservé sept jours comme artefact. Un nouveau push sur la même branche annule l'exécution précédente.
+- **Release** (`release.yml`) : un tag `v*` (par exemple `git tag v0.3.0 && git push --tags`) relance les tests, construit la scène et publie une release GitHub avec une archive zip prête à lancer (`dist`, `server`, `shared`, `hooks`, `package.json`, `README.md`, `.env.example`). Après `npm ci --omit=dev` dans l'archive, `node server/index.js --production` sert la version construite.
+
+Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.glb` n'est pas redistribuable (voir plus bas), et le tableau de bord lit vos sessions locales, il n'a de sens que sur votre machine.
 
 ## Limites
 
@@ -144,6 +155,6 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 
 ## Modèles 3D et licences
 
-- `RobotExpressive.glb` : Tomás Laulhé (Quaternius), CC0, tel que fourni par le dépôt three.js.
+- Les robots sont construits en code à partir de primitives three.js (`src/robot-model.js`), sans fichier externe.
 - `Xbot.glb` : mannequin Mixamo, soumis aux conditions d'Adobe. Il n'est pas redistribuable tel quel : gardez ce dépôt privé ou remplacez ce modèle.
 - Mobilier : KayKit Furniture Bits, CC0 (licence dans `public/models/furniture/`).

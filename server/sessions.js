@@ -58,22 +58,28 @@ const readSessionFile = (filePath) => {
   }
 };
 
-export const readSessions = (directories, { maxAgeMs, now = Date.now() }) => {
-  const sessions = new Map();
-  directories.forEach((directory) => {
+const readRecords = (directories) =>
+  directories.flatMap((directory) => {
     let fileNames = [];
     try {
       fileNames = fs.readdirSync(directory).filter((fileName) => fileName.endsWith(".json"));
     } catch {
-      return;
+      return [];
     }
-    fileNames.forEach((fileName) => {
-      const record = readSessionFile(path.join(directory, fileName));
-      if (!record || record.state === "ended") return;
-      if (now - record.updatedAt > maxAgeMs) return;
-      const known = sessions.get(record.sessionId);
-      if (!known || known.updatedAt < record.updatedAt) sessions.set(record.sessionId, record);
-    });
+    return fileNames.map((fileName) => readSessionFile(path.join(directory, fileName))).filter(Boolean);
   });
-  return [...sessions.values()].sort((first, second) => second.updatedAt - first.updatedAt);
+
+const freshestBySession = (records) => {
+  const bySession = new Map();
+  records.forEach((record) => {
+    const known = bySession.get(record.sessionId);
+    if (!known || known.updatedAt < record.updatedAt) bySession.set(record.sessionId, record);
+  });
+  return [...bySession.values()];
 };
+
+export const readSessions = (directories, { maxAgeMs, now = Date.now() }) =>
+  freshestBySession(readRecords(directories).filter((record) => record.state !== "ended" && now - record.updatedAt <= maxAgeMs)).sort((first, second) => second.updatedAt - first.updatedAt);
+
+export const readRecentlyEnded = (directories, { reason, maxAgeMs, now = Date.now() }) =>
+  freshestBySession(readRecords(directories).filter((record) => record.state === "ended" && record.endReason === reason && now - record.updatedAt <= maxAgeMs));

@@ -1128,3 +1128,14 @@ body {
     transform: scale(0.9);
   }
 }
+
+.bubble--angry {
+  background: #c0392b;
+  font-size: 13px;
+}
+
+.gain--slam {
+  background: #24201c;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}

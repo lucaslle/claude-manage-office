@@ -352,4 +352,11 @@ export const EVENTS = [
     note: "Plus de question en attente : la conversation est archivée.",
     log: "« Portail » est terminée : elle va aux archives.",
   },
+  {
+    label: "Vous videz « Validation » (/clear)",
+    type: "clear",
+    key: "a2",
+    note: "Conversation vidée : le robot quitte les bureaux en claquant la porte.",
+    log: "« Validation » est vidée : le robot quitte les bureaux en claquant la porte.",
+  },
 ];

@@ -85,8 +85,8 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     scoreTracker.apply(publicScore(demoScore));
   };
 
-  const applyDemoSpecs = (merged = []) => {
-    const { overflow } = crowd.sync(currentDemoSpecs, { mergedKeys: merged.map((entry) => entry.key) });
+  const applyDemoSpecs = (merged = [], clearedKeys = []) => {
+    const { overflow } = crowd.sync(currentDemoSpecs, { mergedKeys: merged.map((entry) => entry.key), clearedKeys });
     onOverflow?.(overflow);
     hud.update(currentDemoSpecs);
     scoreDemo(merged);
@@ -104,6 +104,10 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     exit: (eventDefinition, spec) => {
       currentDemoSpecs = currentDemoSpecs.filter((candidate) => candidate.key !== eventDefinition.key);
       applyDemoSpecs([{ key: spec.key, name: spec.name }]);
+    },
+    clear: (eventDefinition, spec) => {
+      currentDemoSpecs = currentDemoSpecs.filter((candidate) => candidate.key !== eventDefinition.key);
+      applyDemoSpecs([], [spec.key]);
     },
     agents: (eventDefinition, spec) => {
       spec.room = "meet";
@@ -241,8 +245,17 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     return `En direct · ${parts.join(" · ")}`;
   };
 
+  const announcedClears = new Set();
+
   const applyLiveState = (state) => {
-    const { overflow } = crowd.sync(state.characters, { mergedKeys: state.mergedKeys });
+    const clearedKeys = state.clearedKeys ?? [];
+    clearedKeys
+      .filter((key) => !announcedClears.has(key) && crowd.describe(key))
+      .forEach((key) => {
+        announcedClears.add(key);
+        log(`« ${crowd.describe(key).spec.name} » est vidée : le robot quitte les bureaux en claquant la porte.`);
+      });
+    const { overflow } = crowd.sync(state.characters, { mergedKeys: state.mergedKeys, clearedKeys });
     onOverflow?.(overflow);
     hud.update(state.characters);
     scoreTracker.apply(state.score ?? null);

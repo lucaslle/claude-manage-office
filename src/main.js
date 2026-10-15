@@ -20,9 +20,9 @@ const SLOW_FRAME_SECONDS = 0.03;
 const SLOW_FRAME_WINDOW = 120;
 const HOME_DIRECTION = new THREE.Vector3(20.5, 27, 29.5).normalize();
 const HOME_TARGET = new THREE.Vector3(0, 0.5, 0);
-const FIT_WIDTH_FACTOR = 67;
-const MIN_HOME_DISTANCE = 40;
-const MAX_HOME_DISTANCE = 95;
+const FIT_WIDTH_FACTOR = 90;
+const MIN_HOME_DISTANCE = 54;
+const MAX_HOME_DISTANCE = 128;
 
 const stage = document.getElementById("stage");
 const backgroundColor = () => new THREE.Color(isDarkTheme() ? "#2a3544" : "#e3e9f1");
@@ -55,7 +55,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.enablePan = false;
 controls.minDistance = 12;
-controls.maxDistance = 120;
+controls.maxDistance = 170;
 controls.minPolarAngle = 0.45;
 controls.maxPolarAngle = 1.25;
 controls.minAzimuthAngle = 0.05;
@@ -75,15 +75,15 @@ const applyHomeView = () => {
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa4b2, 0.45));
 const sun = new THREE.DirectionalLight(0xfff4e5, 1.9);
-sun.position.set(-12, 28, 18);
+sun.position.set(-16, 36, 24);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -19;
-sun.shadow.camera.right = 19;
-sun.shadow.camera.top = 19;
-sun.shadow.camera.bottom = -19;
+sun.shadow.camera.left = -26;
+sun.shadow.camera.right = 26;
+sun.shadow.camera.top = 26;
+sun.shadow.camera.bottom = -26;
 sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 80;
+sun.shadow.camera.far = 110;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
 scene.add(sun);
@@ -104,7 +104,7 @@ new ResizeObserver(resize).observe(stage);
 resize();
 
 const [world, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
-const crowd = createCharacters({ scene, models });
+const crowd = createCharacters({ scene, models, exitDoor: world.exitDoor });
 const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta") });
 const connectorsPanel = createConnectorsPanel({
   body: document.getElementById("connectors-body"),
@@ -113,6 +113,13 @@ const connectorsPanel = createConnectorsPanel({
 });
 const hud = createHud(document.getElementById("hud"));
 const effects = createEffects(scene);
+world.exitDoor.onSlam(() => {
+  const door = world.exitDoor;
+  effects.shake(0.3);
+  effects.gain({ x: door.x, y: 2.7, z: door.z }, "BAM !", "slam");
+  effects.burst({ x: door.x, y: 1.2, z: door.z }, 30, "dust");
+});
+const shakeOffset = new THREE.Vector3();
 const scorePanel = createScorePanel({ body: document.getElementById("score-body"), meta: document.getElementById("score-meta") });
 const scoreTracker = createScoreTracker({
   panel: scorePanel,
@@ -199,12 +206,15 @@ const animate = () => {
   const elapsed = clock.elapsedTime;
   crowd.update(delta, elapsed, ui.refreshPanel);
   effects.update(delta);
-  world.update(elapsed);
+  world.update(elapsed, delta);
   controls.update();
+  effects.shakeOffset(shakeOffset);
+  camera.position.add(shakeOffset);
   if (stage.clientWidth > 0 && stage.clientHeight > 0) {
     pipeline.render();
     labelRenderer.render(scene, camera);
   }
+  camera.position.sub(shakeOffset);
   adaptQuality(delta);
   requestAnimationFrame(animate);
 };
