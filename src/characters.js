@@ -12,7 +12,7 @@ const VANISH_SECONDS = 0.6;
 const SPAWN_SECONDS = 0.6;
 const ROBOT_HEIGHT = 1.6;
 const AGENT_HEIGHT_RATIO = 0.85;
-const MR_HEIGHT = 2.3;
+const MR_HEIGHT = 1.9;
 
 const ROBOT_CLIPS = {
   wave: "Wave",

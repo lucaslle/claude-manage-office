@@ -3,10 +3,13 @@ export const DOOR_WIDTH = 2.6;
 export const DOOR_ALONG = 3.0;
 export const DOOR_ACROSS = -3.0;
 
+// La relecture est au centre : elle touche l'open space, l'atelier, la salle de merge et les archives,
+// les quatre pièces avec lesquelles sessions et MR échangent le plus. Accueil, open space et réunion
+// forment la rangée du fond ; brouillons, merge et attente la rangée de devant.
 export const GRID = [
-  ["acc", "open", "rev"],
-  ["mrg", "wait", "draft"],
-  ["fix", "arch", "meet"],
+  ["acc", "open", "meet"],
+  ["fix", "rev", "arch"],
+  ["draft", "mrg", "wait"],
 ];
 
 export const roomCenters = {};
@@ -30,17 +33,17 @@ export const SLOTS = {
     { x: 3.6, z: 1.4, ry: 0.55, pose: "wave" },
   ],
   open: [
-    { x: -0.9, z: -1.8, ry: Math.PI, pose: "type" },
-    { x: 2.4, z: -1.8, ry: Math.PI, pose: "type" },
-    { x: -0.9, z: 1.4, ry: Math.PI, pose: "type" },
-    { x: 2.4, z: 1.4, ry: Math.PI, pose: "type" },
+    { x: -0.9, z: -2.15, ry: Math.PI, pose: "type" },
+    { x: 2.4, z: -2.15, ry: Math.PI, pose: "type" },
+    { x: -0.9, z: 1.05, ry: Math.PI, pose: "type" },
+    { x: 2.4, z: 1.05, ry: Math.PI, pose: "type" },
   ],
   rev: [
     { x: -1.6, z: -3.3, ry: 0.4, pose: "stand" },
     { x: 0.6, z: -3.5, ry: 0.4, pose: "stand" },
     { x: 2.8, z: -3.3, ry: 0.4, pose: "stand" },
     { x: 4.2, z: -1.8, ry: 0.4, pose: "stand" },
-    { x: -1.8, z: 1.0, ry: 0.4, pose: "stand" },
+    { x: -1.8, z: 1.2, ry: 0.4, pose: "stand" },
     { x: 4.0, z: 1.6, ry: 0.4, pose: "stand" },
   ],
   mrg: [
@@ -57,9 +60,9 @@ export const SLOTS = {
     { x: -2.0, z: -3.6, ry: 0.45, pose: "queue" },
   ],
   draft: [
-    { x: -1.6, z: -1.5, ry: Math.PI, pose: "work" },
-    { x: 0.8, z: -1.5, ry: Math.PI, pose: "work" },
-    { x: 3.2, z: -1.5, ry: Math.PI, pose: "work" },
+    { x: -1.6, z: -1.7, ry: Math.PI, pose: "work" },
+    { x: 0.8, z: -1.7, ry: Math.PI, pose: "work" },
+    { x: 3.2, z: -1.7, ry: Math.PI, pose: "work" },
     { x: -1.4, z: 0.4, ry: 0.5, pose: "queue" },
     { x: 1.0, z: 0.4, ry: 0.5, pose: "queue" },
     { x: 3.4, z: 0.4, ry: 0.5, pose: "queue" },
@@ -67,8 +70,8 @@ export const SLOTS = {
     { x: 2.4, z: 1.8, ry: 0.5, pose: "queue" },
   ],
   fix: [
-    { x: -1.4, z: -1.9, ry: Math.PI, pose: "work" },
-    { x: 1.8, z: -1.9, ry: Math.PI, pose: "work" },
+    { x: -1.4, z: -2.2, ry: Math.PI, pose: "work" },
+    { x: 1.8, z: -2.2, ry: Math.PI, pose: "work" },
     { x: -1.0, z: 1.0, ry: 0.5, pose: "work" },
     { x: 2.0, z: 1.2, ry: 0.5, pose: "work" },
   ],
@@ -80,14 +83,14 @@ export const SLOTS = {
     { x: 1.4, z: -1.4, ry: 0.35, pose: "sleep" },
   ],
   meet: [
-    { x: -0.6, z: -1.8, ry: 0, pose: "meet" },
-    { x: 0.6, z: -1.8, ry: 0, pose: "meet" },
-    { x: 1.8, z: -1.8, ry: 0, pose: "meet" },
-    { x: -0.6, z: 1.0, ry: Math.PI, pose: "meet" },
-    { x: 0.6, z: 1.0, ry: Math.PI, pose: "meet" },
-    { x: 1.8, z: 1.0, ry: Math.PI, pose: "meet" },
-    { x: -1.8, z: -0.4, ry: Math.PI / 2, pose: "meet" },
-    { x: 3.0, z: -0.4, ry: -Math.PI / 2, pose: "meet" },
+    { x: -0.4, z: -1.5, ry: 0, pose: "meet" },
+    { x: 0.6, z: -1.5, ry: 0, pose: "meet" },
+    { x: 1.6, z: -1.5, ry: 0, pose: "meet" },
+    { x: -0.4, z: 0.7, ry: Math.PI, pose: "meet" },
+    { x: 0.6, z: 0.7, ry: Math.PI, pose: "meet" },
+    { x: 1.6, z: 0.7, ry: Math.PI, pose: "meet" },
+    { x: -1.5, z: -0.4, ry: Math.PI / 2, pose: "meet" },
+    { x: 2.7, z: -0.4, ry: -Math.PI / 2, pose: "meet" },
   ],
 };
 

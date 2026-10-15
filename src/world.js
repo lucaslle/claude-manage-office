@@ -4,7 +4,8 @@ import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { GRID, ROOM_SIZE, DOOR_WIDTH, DOOR_ALONG, DOOR_ACROSS, roomCenters } from "./layout.js";
 import { ROOM_LABELS } from "./data.js";
 
-const FURNITURE_SCALE = 0.95;
+const FURNITURE_SCALE = 0.72;
+const PROP_SCALE = 0.75;
 const WALL_HEIGHT = 3.3;
 const SILL_HEIGHT = 0.8;
 const PARTITION_HEIGHT = 2.2;
@@ -297,8 +298,9 @@ export const buildWorld = async (scene) => {
 
   const addMonitor = (roomId, x, z, ry) => {
     const group = new THREE.Group();
-    group.position.set(x, 0.9, z);
+    group.position.set(x, 0.9 * PROP_SCALE, z);
     group.rotation.y = ry;
+    group.scale.setScalar(PROP_SCALE);
     const screenMaterial = new THREE.MeshStandardMaterial({ color: 0x9ed0ff, emissive: 0x2f7fc4, emissiveIntensity: 0.9, roughness: 0.2 });
     addBox(group, 0.95, 0.55, 0.05, darkMaterial, 0, 0.55, 0);
     addBox(group, 0.88, 0.48, 0.02, screenMaterial, 0, 0.55, 0.03);
@@ -309,8 +311,9 @@ export const buildWorld = async (scene) => {
   };
 
   const addWallScreen = (roomId, x, width, height, faceColor, emissive) => {
-    const frame = addBox(roomGroups[roomId], width, height, 0.1, darkMaterial, x, 2.1, -ROOM_SIZE / 2 + 0.16);
-    const face = addBox(roomGroups[roomId], width - 0.2, height - 0.2, 0.04, new THREE.MeshStandardMaterial({ color: faceColor, emissive, emissiveIntensity: 0.8, roughness: 0.2 }), x, 2.1, -ROOM_SIZE / 2 + 0.22);
+    const screenY = 1.7;
+    const frame = addBox(roomGroups[roomId], width, height, 0.1, darkMaterial, x, screenY, -ROOM_SIZE / 2 + 0.16);
+    const face = addBox(roomGroups[roomId], width - 0.16, height - 0.16, 0.04, new THREE.MeshStandardMaterial({ color: faceColor, emissive, emissiveIntensity: 0.8, roughness: 0.2 }), x, screenY, -ROOM_SIZE / 2 + 0.22);
     frame.castShadow = false;
     face.castShadow = false;
   };
@@ -318,11 +321,11 @@ export const buildWorld = async (scene) => {
   // Les trajets traversent chaque pièce sur deux bandes : z entre 2.2 et 3.8 (passage d'une colonne à l'autre)
   // et x entre -3.8 et -2.2 (passage d'une rangée à l'autre). Le mobilier reste en dehors.
   place("acc", "table_medium_long", { x: -0.6, z: -3.4, ry: 0 });
-  addMonitor("acc", 0, -3.4, Math.PI);
-  place("acc", "book_set", { x: -1.4, z: -3.4, y: 0.78, scale: 0.8 });
-  place("acc", "couch", { x: 4.3, z: -2.2, ry: -Math.PI / 2, scale: 0.85 });
-  place("acc", "table_low", { x: 2.9, z: -2.2, ry: Math.PI / 2, scale: 0.7 });
-  place("acc", "rug_oval_A", { x: 0.6, z: 0.6, scale: 1.5 });
+  addMonitor("acc", -0.1, -3.4, Math.PI);
+  place("acc", "book_set", { x: -1.2, z: -3.4, y: 0.6, scale: 0.6 });
+  place("acc", "couch", { x: 4.3, z: -2.2, ry: -Math.PI / 2, scale: 0.65 });
+  place("acc", "table_low", { x: 3.2, z: -2.2, ry: Math.PI / 2, scale: 0.55 });
+  place("acc", "rug_oval_A", { x: 0.6, z: 0.6, scale: 1.2 });
   place("acc", "lamp_standing", { x: 4.3, z: -4.3 });
   place("acc", "cactus_medium_A", { x: -4.4, z: 0.2 });
   place("acc", "cactus_small_A", { x: 4.3, z: 4.3 });
@@ -330,7 +333,7 @@ export const buildWorld = async (scene) => {
   [-3.4, -0.2].forEach((deskZ) => {
     [-0.9, 2.4].forEach((deskX) => {
       place("open", "table_medium_long", { x: deskX, z: deskZ });
-      place("open", "chair_A", { x: deskX, z: deskZ + 1.55, ry: Math.PI });
+      place("open", "chair_A", { x: deskX, z: deskZ + 1.2, ry: Math.PI });
       addMonitor("open", deskX, deskZ, 0);
     });
   });
@@ -338,56 +341,56 @@ export const buildWorld = async (scene) => {
   place("open", "cactus_medium_B", { x: 4.3, z: 4.3 });
   place("open", "lamp_standing", { x: -4.4, z: 4.3 });
 
-  place("rev", "table_medium_long", { x: 0.8, z: -0.4, ry: 0, scale: 1.05 });
-  [-0.3, 1.9].forEach((offset) => place("rev", "chair_B", { x: offset, z: 1.2, ry: Math.PI }));
-  place("rev", "chair_C", { x: -1.6, z: -0.4, ry: Math.PI / 2 });
-  place("rev", "chair_C", { x: 3.2, z: -0.4, ry: -Math.PI / 2 });
-  place("rev", "rug_rectangle_A", { x: 0.8, z: -0.4, scale: 1.7 });
-  addWallScreen("rev", 0.8, 3.6, 1.9, 0xa9c1ff, 0x3a58c0);
+  place("rev", "table_medium_long", { x: 0.8, z: -0.4, ry: 0, scale: 0.8 });
+  [-0.1, 1.7].forEach((offset) => place("rev", "chair_B", { x: offset, z: 0.85, ry: Math.PI }));
+  place("rev", "chair_C", { x: -1.3, z: -0.4, ry: Math.PI / 2 });
+  place("rev", "chair_C", { x: 2.9, z: -0.4, ry: -Math.PI / 2 });
+  place("rev", "rug_rectangle_A", { x: 0.8, z: -0.4, scale: 1.3 });
+  addWallScreen("rev", 0.8, 2.8, 1.5, 0xa9c1ff, 0x3a58c0);
   place("rev", "cactus_medium_A", { x: 4.3, z: 4.3 });
 
-  [-1.4, 1.4].forEach((offset) => addBox(roomGroups.mrg, 0.32, 2.8, 0.32, metalMaterial, offset, 1.4, -3.6));
-  const gateBeam = addBox(roomGroups.mrg, 3.1, 0.36, 0.36, new THREE.MeshStandardMaterial({ color: 0x4bbd6c, emissive: 0x1f8a42, emissiveIntensity: 1.1, roughness: 0.3 }), 0, 2.9, -3.6);
+  [-1.4, 1.4].forEach((offset) => addBox(roomGroups.mrg, 0.26, 2.2, 0.26, metalMaterial, offset, 1.1, -3.6));
+  const gateBeam = addBox(roomGroups.mrg, 3.06, 0.3, 0.3, new THREE.MeshStandardMaterial({ color: 0x4bbd6c, emissive: 0x1f8a42, emissiveIntensity: 1.1, roughness: 0.3 }), 0, 2.3, -3.6);
   addBox(roomGroups.mrg, 2.0, 0.02, 8.0, standardMaterial(0xa3c391, { roughness: 0.9 }), 0, 0.01, 0.4);
   for (let stripe = -3; stripe <= 3; stripe += 1) addBox(roomGroups.mrg, 0.12, 0.025, 0.6, standardMaterial(0xf6f8fa), 0, 0.02, stripe * 1.2 + 0.4);
   place("mrg", "cactus_small_A", { x: 4.3, z: 4.3 });
   place("mrg", "cactus_small_A", { x: -4.4, z: 4.3 });
   place("mrg", "cabinet_small", { x: -4.4, z: -1.0, ry: Math.PI / 2 });
 
-  place("wait", "couch", { x: 0, z: -3.9, ry: 0, scale: 0.95 });
-  place("wait", "table_low", { x: 4.2, z: 1.2, ry: Math.PI / 2, scale: 0.7 });
+  place("wait", "couch", { x: 0, z: -3.9, ry: 0, scale: 0.72 });
+  place("wait", "table_low", { x: 4.2, z: 1.2, ry: Math.PI / 2, scale: 0.55 });
   place("wait", "lamp_standing", { x: 4.3, z: -4.3 });
   place("wait", "cactus_medium_A", { x: -4.4, z: -4.3 });
   const ropeMaterial = standardMaterial(0x2e343d, { roughness: 0.6 });
   [-1.0, 1.0].forEach((offset) => {
     [-3.0, -1.4, 0.2, 1.8].forEach((posZ) => {
-      addCylinder(roomGroups.wait, 0.05, 0.08, 1.0, metalMaterial, offset, 0.5, posZ);
-      addCylinder(roomGroups.wait, 0.08, 0.08, 0.05, metalMaterial, offset, 1.02, posZ);
+      addCylinder(roomGroups.wait, 0.04, 0.07, 0.75, metalMaterial, offset, 0.375, posZ);
+      addCylinder(roomGroups.wait, 0.07, 0.07, 0.04, metalMaterial, offset, 0.77, posZ);
     });
-    [-3.0, -1.4, 0.2].forEach((posZ) => addBox(roomGroups.wait, 0.03, 0.05, 1.5, ropeMaterial, offset, 0.9, posZ + 0.8));
+    [-3.0, -1.4, 0.2].forEach((posZ) => addBox(roomGroups.wait, 0.03, 0.04, 1.5, ropeMaterial, offset, 0.68, posZ + 0.8));
   });
-  addBox(roomGroups.wait, 0.7, 1.5, 0.5, standardMaterial(0x3a4a63), 3.8, 0.75, -1.6);
-  addBox(roomGroups.wait, 0.5, 0.35, 0.03, new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xb58a12, emissiveIntensity: 0.9 }), 3.8, 1.15, -1.34);
+  addBox(roomGroups.wait, 0.55, 1.15, 0.4, standardMaterial(0x3a4a63), 3.8, 0.575, -1.6);
+  addBox(roomGroups.wait, 0.4, 0.28, 0.03, new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xb58a12, emissiveIntensity: 0.9 }), 3.8, 0.88, -1.39);
 
   [-1.6, 0.8, 3.2].forEach((offset) => {
-    place("draft", "table_medium", { x: offset, z: -3.4, ry: 0, scale: 0.78 });
-    addBox(roomGroups.draft, 1.0, 0.02, 0.7, standardMaterial(0xffffff), offset, 0.8, -3.4);
-    place("draft", "chair_stool", { x: offset, z: -2.3, ry: 0, scale: 0.8 });
+    place("draft", "table_medium", { x: offset, z: -3.4, ry: 0, scale: 0.6 });
+    addBox(roomGroups.draft, 0.75, 0.02, 0.55, standardMaterial(0xffffff), offset, 0.62, -3.4);
+    place("draft", "chair_stool", { x: offset, z: -2.5, ry: 0, scale: 0.6 });
   });
-  addBox(roomGroups.draft, 0.08, 1.7, 3.2, standardMaterial(0xf8f9fb, { roughness: 0.35 }), 4.5, 1.5, 0.2);
-  addBox(roomGroups.draft, 0.1, 1.8, 3.3, frameMaterial, 4.56, 1.5, 0.2);
-  place("draft", "shelf_A_big", { x: -4.75, z: 0.2, ry: Math.PI / 2, y: 1.6, scale: 1.0 });
+  addBox(roomGroups.draft, 0.08, 1.3, 2.6, standardMaterial(0xf8f9fb, { roughness: 0.35 }), 4.5, 1.2, 0.2);
+  addBox(roomGroups.draft, 0.1, 1.4, 2.7, frameMaterial, 4.56, 1.2, 0.2);
+  place("draft", "shelf_A_big", { x: -4.75, z: 0.2, ry: Math.PI / 2, y: 1.3, scale: 0.76 });
   place("draft", "cactus_medium_A", { x: -4.4, z: 4.3 });
 
-  place("fix", "table_medium_long", { x: 0.4, z: -3.6, ry: 0, scale: 1.0 });
+  place("fix", "table_medium_long", { x: 0.4, z: -3.6, ry: 0, scale: 0.76 });
   place("fix", "cabinet_medium", { x: -4.4, z: -1.2, ry: Math.PI / 2 });
   place("fix", "cabinet_small", { x: 3.6, z: -3.7, ry: 0 });
-  addBox(roomGroups.fix, 0.8, 0.4, 0.4, standardMaterial(0xd04a3a, { roughness: 0.5 }), 3.2, 0.2, 0.6);
-  addBox(roomGroups.fix, 0.4, 0.06, 0.06, metalMaterial, -0.2, 1.0, -3.6);
-  addBox(roomGroups.fix, 0.14, 0.24, 0.14, darkMaterial, 0.9, 1.12, -3.6);
-  addCylinder(roomGroups.fix, 0.06, 0.06, 1.8, metalMaterial, 4.2, 0.9, -1.8);
+  addBox(roomGroups.fix, 0.6, 0.3, 0.3, standardMaterial(0xd04a3a, { roughness: 0.5 }), 3.2, 0.15, 0.6);
+  addBox(roomGroups.fix, 0.3, 0.05, 0.05, metalMaterial, -0.2, 0.74, -3.6);
+  addBox(roomGroups.fix, 0.11, 0.18, 0.11, darkMaterial, 0.9, 0.83, -3.6);
+  addCylinder(roomGroups.fix, 0.05, 0.05, 1.4, metalMaterial, 4.2, 0.7, -1.8);
   const beaconMaterial = new THREE.MeshStandardMaterial({ color: 0xe24b4a, emissive: 0xc01818, emissiveIntensity: 1.2, roughness: 0.3 });
-  const beacon = addCylinder(roomGroups.fix, 0.22, 0.22, 0.34, beaconMaterial, 4.2, 1.95, -1.8);
+  const beacon = addCylinder(roomGroups.fix, 0.17, 0.17, 0.26, beaconMaterial, 4.2, 1.5, -1.8);
   animated.push((elapsed) => {
     beacon.rotation.y = elapsed * 3;
     beaconMaterial.emissiveIntensity = 0.7 + Math.sin(elapsed * 6) * 0.5;
@@ -395,20 +398,20 @@ export const buildWorld = async (scene) => {
   place("fix", "cactus_small_A", { x: 4.3, z: 4.3 });
 
   [-1.5, 0.3, 2.1, 3.9].forEach((offset, index) => place("arch", index % 2 === 0 ? "cabinet_medium" : "cabinet_medium_decorated", { x: offset, z: -3.9, ry: 0 }));
-  [-1.6, 0.4, 2.4].forEach((offset) => place("arch", "armchair", { x: offset, z: 1.0, ry: 0.35, scale: 0.85 }));
-  [-0.6, 1.4].forEach((offset) => place("arch", "armchair", { x: offset, z: -1.4, ry: 0.35, scale: 0.85 }));
+  [-1.6, 0.4, 2.4].forEach((offset) => place("arch", "armchair", { x: offset, z: 1.0, ry: 0.35, scale: 0.65 }));
+  [-0.6, 1.4].forEach((offset) => place("arch", "armchair", { x: offset, z: -1.4, ry: 0.35, scale: 0.65 }));
   place("arch", "lamp_standing", { x: 4.3, z: -1.2 });
-  place("arch", "rug_rectangle_A", { x: 0.4, z: 0.0, scale: 1.9 });
+  place("arch", "rug_rectangle_A", { x: 0.4, z: 0.0, scale: 1.5 });
 
-  place("meet", "table_medium_long", { x: 0.6, z: -0.4, ry: 0, scale: 1.1 });
-  place("meet", "rug_rectangle_A", { x: 0.6, z: -0.4, scale: 1.8 });
-  [-0.6, 0.6, 1.8].forEach((seatX) => {
-    place("meet", "chair_B", { x: seatX, z: -1.8, ry: 0 });
-    place("meet", "chair_B", { x: seatX, z: 1.0, ry: Math.PI });
+  place("meet", "table_medium_long", { x: 0.6, z: -0.4, ry: 0, scale: 0.85 });
+  place("meet", "rug_rectangle_A", { x: 0.6, z: -0.4, scale: 1.4 });
+  [-0.4, 0.6, 1.6].forEach((seatX) => {
+    place("meet", "chair_B", { x: seatX, z: -1.5, ry: 0 });
+    place("meet", "chair_B", { x: seatX, z: 0.7, ry: Math.PI });
   });
-  place("meet", "chair_B", { x: -1.8, z: -0.4, ry: Math.PI / 2 });
-  place("meet", "chair_B", { x: 3.0, z: -0.4, ry: -Math.PI / 2 });
-  addWallScreen("meet", 0.6, 3.8, 2.0, 0xb7e3c4, 0x2f8f56);
+  place("meet", "chair_B", { x: -1.5, z: -0.4, ry: Math.PI / 2 });
+  place("meet", "chair_B", { x: 2.7, z: -0.4, ry: -Math.PI / 2 });
+  addWallScreen("meet", 0.6, 2.9, 1.55, 0xb7e3c4, 0x2f8f56);
   place("meet", "cactus_medium_A", { x: 4.3, z: 4.3 });
   place("meet", "cactus_medium_B", { x: -4.4, z: 4.3 });
   place("meet", "lamp_standing", { x: 4.3, z: -4.3 });
