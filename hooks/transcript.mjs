@@ -4,11 +4,11 @@ const TAIL_BYTES = 600000;
 const QUESTION_PHRASES =
   /(veux-tu|voulez-vous|souhaites-tu|souhaitez-vous|dois-je|préfères-tu|préférez-vous|do you want|should i|would you like|want me to|which one|lequel|laquelle|quelle option)[^.!]*$/i;
 
-export const readTailLines = (filePath) => {
+export const readTailLines = (filePath, maxBytes = TAIL_BYTES) => {
   const descriptor = fs.openSync(filePath, "r");
   try {
     const { size } = fs.fstatSync(descriptor);
-    const length = Math.min(size, TAIL_BYTES);
+    const length = Math.min(size, maxBytes);
     const buffer = Buffer.alloc(length);
     fs.readSync(descriptor, buffer, 0, length, size - length);
     const lines = buffer.toString("utf8").split(/\r?\n/);
@@ -19,10 +19,10 @@ export const readTailLines = (filePath) => {
   }
 };
 
-export const readHeadLines = (filePath, maxLines = 60) => {
+export const readHeadLines = (filePath, maxLines = 60, maxBytes = 200000) => {
   const descriptor = fs.openSync(filePath, "r");
   try {
-    const buffer = Buffer.alloc(200000);
+    const buffer = Buffer.alloc(maxBytes);
     const bytesRead = fs.readSync(descriptor, buffer, 0, buffer.length, 0);
     return buffer.toString("utf8", 0, bytesRead).split(/\r?\n/).slice(0, maxLines).filter((line) => line.length > 0);
   } finally {
@@ -88,6 +88,16 @@ export const firstUserPrompt = (lines) => {
     if (text) return text;
   }
   return "";
+};
+
+export const findWorkingContext = (lines) => {
+  for (const line of lines) {
+    const entry = parseLine(line);
+    if (entry && typeof entry.cwd === "string" && entry.cwd) {
+      return { cwd: entry.cwd, branch: typeof entry.gitBranch === "string" ? entry.gitBranch : "", entrypoint: typeof entry.entrypoint === "string" ? entry.entrypoint : "" };
+    }
+  }
+  return { cwd: "", branch: "", entrypoint: "" };
 };
 
 export const findEntrypoint = (lines) => {

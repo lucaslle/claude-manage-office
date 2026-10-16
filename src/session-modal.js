@@ -162,6 +162,7 @@ export const createSessionModal = ({ isLive }) => {
     expandedRoles = new Set();
     title.textContent = spec.title;
     badge.textContent = ROOM_NAMES[room] ?? "";
+    badge.hidden = !badge.textContent;
     link.hidden = !spec.url;
     if (spec.url) link.href = spec.url;
 

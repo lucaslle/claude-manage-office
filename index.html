@@ -19,6 +19,13 @@
         <span class="brand__mark" aria-hidden="true"></span>
         <h1 class="brand__title">Bureaux Claude</h1>
       </div>
+      <nav class="view-switch" aria-label="Vue">
+        <button class="view-switch__button" id="view-office" type="button" aria-pressed="true">Bureau</button>
+        <button class="view-switch__button" id="view-library" type="button" aria-pressed="false">
+          Discussions
+          <span class="view-switch__count" id="library-count" hidden></span>
+        </button>
+      </nav>
       <div class="status-pill" id="source-pill">
         <span class="status-pill__dot" aria-hidden="true"></span>
         <span class="status-pill__text" id="source-status"></span>
@@ -51,7 +58,23 @@
         </label>
       </div>
     </header>
-    <main class="layout">
+    <section class="library" id="library" aria-label="Toutes les discussions" hidden>
+      <header class="library__toolbar">
+        <label class="library__search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>
+          <input id="library-search" type="search" placeholder="Rechercher une discussion, un projet, une branche…" autocomplete="off" aria-label="Rechercher une discussion" />
+        </label>
+        <div class="library__group">
+          <span class="library__label" id="library-grouping-label">Regrouper par</span>
+          <div class="chips" id="library-grouping" role="group" aria-labelledby="library-grouping-label"></div>
+        </div>
+        <button class="button button--small" id="library-refresh" type="button">Actualiser</button>
+      </header>
+      <div class="chips" id="library-filters" role="group" aria-label="Filtrer les discussions"></div>
+      <p class="library__summary" id="library-summary" aria-live="polite"></p>
+      <div class="library__list" id="library-list"></div>
+    </section>
+    <main class="layout" id="office-view">
       <section class="stage-wrap">
         <div class="stage" id="stage" aria-label="Scène 3D des bureaux"></div>
         <div class="hud" id="hud" aria-label="Résumé"></div>

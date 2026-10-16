@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { createSessionRoutes } from "./api.js";
+import { createLibraryRoutes, createSessionRoutes } from "./api.js";
+import { createLibrary } from "./library.js";
 import { createGitlabClient } from "./gitlab.js";
 import { loadConfig, rootDirectory } from "./config.js";
 import { buildCharacters } from "./model.js";
@@ -42,10 +43,12 @@ const gitlabStatus = {
 
 const sessionDirectories = () => [...config.sessionDirectories, ...wslDirectories];
 
+const library = createLibrary({ directories: sessionDirectories, contextWindow: config.contextWindow });
+const libraryRoutes = createLibraryRoutes({ port: config.port, library, liveSessions: () => sessions });
 const sessionRoutes = createSessionRoutes({
   port: config.port,
   config,
-  findSession: (sessionId) => sessions.find((record) => record.sessionId === sessionId),
+  findSession: (sessionId) => sessions.find((record) => record.sessionId === sessionId) ?? library.findRecord(sessionId),
 });
 
 const buildCurrentCharacters = () => buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000 });
@@ -146,6 +149,7 @@ const sendJson = (response, body) => {
 
 const handleApi = async (request, response) => {
   if (await sessionRoutes(request, response)) return undefined;
+  if (await libraryRoutes(request, response)) return undefined;
   if (request.url.startsWith("/api/state")) return sendJson(response, currentState());
   if (request.url.startsWith("/api/stream")) {
     response.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });

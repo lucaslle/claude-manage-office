@@ -8,6 +8,8 @@ const FURNITURE_SCALE = 0.72;
 const PROP_SCALE = 0.75;
 const WALL_HEIGHT = 3.3;
 const SILL_HEIGHT = 0.8;
+const GLAZING_TOP = WALL_HEIGHT - 0.25;
+const PLINTH_Y = -0.08;
 const PARTITION_HEIGHT = 2.2;
 const PARTITION_SILL = 0.85;
 const FRAME_SIZE = 0.07;
@@ -207,7 +209,7 @@ export const buildWorld = async (scene) => {
   ground.receiveShadow = true;
   world.add(ground);
   const plinth = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE * 3 + 0.6, 0.08, ROOM_SIZE * 3 + 0.6), plinthMaterial);
-  plinth.position.y = -0.1;
+  plinth.position.y = PLINTH_Y;
   plinth.receiveShadow = true;
   world.add(plinth);
 
@@ -268,15 +270,15 @@ export const buildWorld = async (scene) => {
 
   const facade = (x1, z1, x2, z2) => {
     wallSegment(x1, z1, x2, z2, 0, SILL_HEIGHT, 0.3, plasterMaterial);
-    wallSegment(x1, z1, x2, z2, SILL_HEIGHT, WALL_HEIGHT - 0.25, 0.08, glazingMaterial, true);
-    wallSegment(x1, z1, x2, z2, WALL_HEIGHT - 0.25, WALL_HEIGHT, 0.3, plasterMaterial);
+    wallSegment(x1, z1, x2, z2, SILL_HEIGHT, GLAZING_TOP, 0.08, glazingMaterial, true);
+    wallSegment(x1, z1, x2, z2, GLAZING_TOP, WALL_HEIGHT, 0.3, plasterMaterial);
     wallSegment(x1, z1, x2, z2, SILL_HEIGHT - 0.05, SILL_HEIGHT + 0.05, 0.34, frameMaterial);
     const horizontal = z1 === z2;
     for (let mullion = 0; mullion <= GLAZING_MULLIONS; mullion += 1) {
       const ratio = mullion / GLAZING_MULLIONS;
       const x = horizontal ? x1 + (x2 - x1) * ratio : x1;
       const z = horizontal ? z1 : z1 + (z2 - z1) * ratio;
-      addBox(world, horizontal ? FRAME_SIZE : 0.14, WALL_HEIGHT - SILL_HEIGHT, horizontal ? 0.14 : FRAME_SIZE, frameMaterial, x, (WALL_HEIGHT + SILL_HEIGHT) / 2, z);
+      addBox(world, horizontal ? FRAME_SIZE : 0.14, GLAZING_TOP - SILL_HEIGHT, horizontal ? 0.14 : FRAME_SIZE, frameMaterial, x, (GLAZING_TOP + SILL_HEIGHT) / 2, z);
     }
   };
 
@@ -322,6 +324,12 @@ export const buildWorld = async (scene) => {
       }
     }
   }
+  // Les murs sont centrés sur leur axe : sans ces plots, chaque angle extérieur garde une encoche d'une demi-épaisseur.
+  addBox(world, 0.3, WALL_HEIGHT, 0.3, plasterMaterial, edge(0), WALL_HEIGHT / 2, edge(0));
+  addBox(world, 0.3, WALL_HEIGHT, 0.3, plasterMaterial, edge(3), WALL_HEIGHT / 2, edge(0));
+  addBox(world, 0.3, WALL_HEIGHT, 0.3, plasterMaterial, edge(0), WALL_HEIGHT / 2, edge(3));
+  addBox(world, 0.2, 0.22, 0.2, frameMaterial, edge(3), 0.11, edge(3));
+
   for (let lineIndex = 0; lineIndex < 4; lineIndex += 1) {
     for (let cellIndex = 0; cellIndex < 4; cellIndex += 1) {
       const isFront = lineIndex === 3 || cellIndex === 3;

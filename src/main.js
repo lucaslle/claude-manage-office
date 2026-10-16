@@ -11,6 +11,8 @@ import { CHARACTERS } from "./data.js";
 import { currentBrand, initTheme, isDarkTheme } from "./theme.js";
 import { scenePalette } from "./brands.js";
 import { createBrandMenu } from "./brand-menu.js";
+import { createLibraryView } from "./library.js";
+import { formatAge } from "./format.js";
 import { createUsagePanel } from "./usage.js";
 import { createConnectorsPanel } from "./connectors.js";
 import { createHud } from "./hud.js";
@@ -158,6 +160,49 @@ const scoreTracker = createScoreTracker({
 const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: world.setRoomOverflow, usagePanel, connectorsPanel, hud, scoreTracker });
 
 const sessionModal = createSessionModal({ isLive: ui.isLive });
+
+const officeView = document.getElementById("office-view");
+const libraryRoot = document.getElementById("library");
+const officeButton = document.getElementById("view-office");
+const libraryButton = document.getElementById("view-library");
+const libraryCount = document.getElementById("library-count");
+const libraryView = createLibraryView({
+  root: libraryRoot,
+  onCount: (count) => {
+    libraryCount.textContent = String(count);
+    libraryCount.hidden = false;
+  },
+  onOpenEntry: (entry) =>
+    sessionModal.open({
+      spec: {
+        kind: "robot",
+        sessionId: entry.id,
+        title: entry.title,
+        action: `${entry.project}${entry.branch ? ` · ${entry.branch}` : ""} · ${formatAge(Math.max(0, Date.now() - entry.updatedAt))}`,
+        why: "",
+        mr: entry.branch || "Aucune",
+        url: "",
+      },
+      room: null,
+    }),
+});
+
+const showView = (view) => {
+  const library = view === "library";
+  officeView.hidden = library;
+  libraryRoot.hidden = !library;
+  officeButton.setAttribute("aria-pressed", String(!library));
+  libraryButton.setAttribute("aria-pressed", String(library));
+  if (library) libraryView.show();
+  else libraryView.hide();
+  const hash = library ? "#discussions" : "";
+  if (location.hash !== hash) history.replaceState(null, "", `${location.pathname}${location.search}${hash}`);
+};
+officeButton.addEventListener("click", () => showView("office"));
+libraryButton.addEventListener("click", () => showView("library"));
+window.addEventListener("hashchange", () => showView(location.hash === "#discussions" ? "library" : "office"));
+libraryView.preload();
+if (location.hash === "#discussions") showView("library");
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
