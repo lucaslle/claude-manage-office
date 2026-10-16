@@ -12,6 +12,8 @@ import { OFFICE_STYLE } from "./office.js";
 //   walls       textures plaster, frame, ground, plinth ; frameGlow pour des cadres lumineux
 //   sign        apparence des enseignes
 //   ledgeIntensity   éclat du liseré au pied des murs
+//   accentColor      couleur unique du liseré de toutes les pièces (sinon une couleur par pièce)
+//   receptionSign    texte de l'enseigne de l'accueil
 //   props(ctx)  renvoie des meubles qui remplacent ceux de props.js
 //   decor(ctx)  ajoute des éléments à la scène une fois les pièces meublées
 
@@ -22,6 +24,7 @@ const loaders = {
   amongus: () => import("./amongus.js").then((module) => module.AMONG_US_STYLE),
   chef: () => import("./chef.js").then((module) => module.CHEF_STYLE),
   cyber: () => import("./cyber.js").then((module) => module.CYBER_STYLE),
+  xefi: () => import("./xefi.js").then((module) => module.XEFI_STYLE),
   lego: () => import("./lego.js").then((module) => module.LEGO_STYLE),
 };
 

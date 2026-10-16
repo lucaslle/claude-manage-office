@@ -12,7 +12,7 @@ const ROOM_ACTIONS = {
 
 const REVIEW_ACTION = "Lire la review de Claude.";
 const DEFAULT_REST_MS = 2 * 60 * 60 * 1000;
-const PAUSE_SEATS = 6;
+const PAUSE_SEATS = 9;
 
 const MEETING_MIN_AGENTS = 2;
 const MAX_AGENTS_PER_SESSION = 8;

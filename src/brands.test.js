@@ -36,8 +36,8 @@ describe("thèmes d'entreprise", () => {
     BRANDS.forEach((brand) => assert.ok(["auto", "dark"].includes(brand.mode), brand.id));
   });
 
-  it("propose les univers Minecraft, Among Us, Chef, Cyberpunk et Lego", () => {
-    ["minecraft", "among-us", "chef", "cyberpunk", "lego"].forEach((id) => assert.equal(findBrand(id).id, id));
+  it("propose l'univers Xefi et ceux de Minecraft, Among Us, Chef, Cyberpunk et Lego", () => {
+    ["xefi", "minecraft", "among-us", "chef", "cyberpunk", "lego"].forEach((id) => assert.equal(findBrand(id).id, id));
   });
 });
 

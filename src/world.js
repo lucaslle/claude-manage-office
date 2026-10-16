@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { COLUMNS, ROWS, GRID, ROOM_SIZE, DOOR_WIDTH, DOOR_ALONG, DOOR_ACROSS, roomAt, roomCenters, rowToZ } from "./layout.js";
+import { COLUMNS, ROWS, GRID, ROOM_SIZE, DOOR_WIDTH, DOOR_ALONG, DOOR_ACROSS, PAUSE_COLUMNS, PAUSE_SOFAS, roomAt, roomCenters, rowToZ } from "./layout.js";
 import { ROOM_LABELS } from "./data.js";
 import { createProps } from "./props.js";
 import { boxGeometry, makeFloorTexture, makeWallTexture } from "./textures.js";
@@ -323,12 +323,12 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   const backWall = -ROOM_SIZE / 2 + 0.2;
 
   // Liseré LED au pied du mur du fond de chaque pièce, dans la couleur de la pièce.
-  rooms.forEach((roomId) => props.wallLedge(room(roomId), { x: 0, z: -ROOM_SIZE / 2 + 0.14, width: ROOM_SIZE - 0.8, color: ACCENTS[roomId], intensity: style.ledgeIntensity ?? 0.85 }));
+  rooms.forEach((roomId) => props.wallLedge(room(roomId), { x: 0, z: -ROOM_SIZE / 2 + 0.14, width: ROOM_SIZE - 0.8, color: style.accentColor ?? ACCENTS[roomId], intensity: style.ledgeIntensity ?? 0.85 }));
 
   props.counter(room("acc"), { x: -0.3, z: -3.9, width: 3.4, depth: 0.8, top: M.white, light: 0xff6b6b });
   addBox(room("acc"), 0.8, 0.46, 0.03, M.black, -0.3, 1.38, -4.05);
   addBox(room("acc"), 0.74, 0.4, 0.01, M.screen, -0.3, 1.38, -4.03).castShadow = false;
-  props.signPanel(room("acc"), { x: -0.3, y: 2.35, z: backWall, width: 3.2, height: 0.8, text: "BUREAUX CLAUDE", accentColor: "#ff6b6b" });
+  props.signPanel(room("acc"), { x: -0.3, y: 2.35, z: backWall, width: 3.2, height: 0.8, text: style.receptionSign ?? "BUREAUX CLAUDE", accentColor: "#ff6b6b" });
   props.rug(room("acc"), { x: 0.6, z: 0.4, width: 4.6, depth: 3.2, color: M.fog });
   props.sofa(room("acc"), { x: 4.3, z: -2.1, ry: -Math.PI / 2, length: 2.4 });
   props.roundTable(room("acc"), { x: 3.1, z: -2.1, radius: 0.5 });
@@ -412,21 +412,16 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   props.plant(room("arch"), { x: 4.4, z: 4.3, height: 1.6 });
   props.plant(room("arch"), { x: -4.4, z: 4.3, kind: "snake" });
 
-  // Pause : un vrai salon sur parquet, deux coins canapé face à face et le bar à café au fond.
-  props.rug(room("pause"), { x: 1.4, z: -1.7, width: 6.8, depth: 4.2, color: M.fog });
-  props.sofa(room("pause"), { x: -1.5, z: -1.7, ry: Math.PI / 2, length: 2.4, tone: M.door[0] });
-  props.roundTable(room("pause"), { x: -0.2, z: -1.7, radius: 0.5, top: M.oak });
-  props.sofa(room("pause"), { x: 4.4, z: -1.7, ry: -Math.PI / 2, length: 2.4, tone: M.door[1] });
-  props.roundTable(room("pause"), { x: 3.0, z: -1.7, radius: 0.5, top: M.oak });
-  props.pouf(room("pause"), { x: 2.3, z: -0.4, color: M.door[2] });
-  props.pouf(room("pause"), { x: 2.2, z: -2.2, color: M.door[0] });
-  props.pouf(room("pause"), { x: -0.2, z: -0.3, color: M.door[3] });
-  props.bench(room("pause"), { x: -0.4, z: -4.15, length: 2.4 });
+  // Pause : un salon sur parquet. Deux rangées de canapés se font face autour de petites tables, sur un grand tapis ; une rangée
+  // de plus est devant. Une place par canapé (voir SLOTS.pause), le bar à café est au fond.
+  props.rug(room("pause"), { x: 1.4, z: -1.6, width: 7.6, depth: 5.4, color: M.fog });
+  PAUSE_SOFAS.forEach(({ x, z, ry }, index) => props.sofa(room("pause"), { x, z, ry, length: 1.6, tone: M.door[index % M.door.length] }));
+  PAUSE_COLUMNS.forEach((x) => props.roundTable(room("pause"), { x, z: -1.6, radius: 0.4, top: M.oak }));
   props.coffeeBar(room("pause"), { x: 2.9, z: -4.4, width: 2.3 });
   props.signPanel(room("pause"), { x: 2.9, y: 2.9, z: backWall, width: 1.8, height: 0.6, text: "PAUSE", accentColor: "#14b8a6" });
-  props.plant(room("pause"), { x: 4.4, z: 4.3, height: 1.6 });
-  props.plant(room("pause"), { x: 2.0, z: 1.3, kind: "snake" });
   props.plant(room("pause"), { x: -4.4, z: -4.3, height: 1.7 });
+  props.plant(room("pause"), { x: -1.0, z: -4.4, kind: "snake" });
+  props.plant(room("pause"), { x: 4.4, z: 1.2, height: 1.6 });
   props.plant(room("pause"), { x: -4.4, z: 4.3, kind: "snake" });
 
   props.rug(room("meet"), { x: 0.6, z: -0.4, width: 5, depth: 3.4, color: M.slate });

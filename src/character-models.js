@@ -12,6 +12,7 @@ const CHARACTER_BY_STYLE = {
   lego: "minifig",
   chef: "chef",
   cyber: "cyber",
+  xefi: "xefi",
 };
 
 export const characterFor = (styleId) => CHARACTER_BY_STYLE[styleId] ?? "robot";
@@ -210,6 +211,20 @@ const buildCyber = () =>
     },
   });
 
+const buildXefi = () =>
+  buildRobotModel({
+    clay: 0xe10600,
+    ink: 0x111111,
+    cream: 0xffffff,
+    decorate: ({ head, mesh: add, materials }) => {
+      add(new RoundedBoxGeometry(0.46, 0.46, 0.03, 3, 0.04), standard(0x191919, { roughness: 0.5 }), head, 0, 0.27, 0.322);
+      [Math.PI / 4, -Math.PI / 4].forEach((angle) => {
+        const bar = add(new THREE.BoxGeometry(0.4, 0.07, 0.02), materials.cream, head, 0, 0.27, 0.345);
+        bar.rotation.z = angle;
+      });
+    },
+  });
+
 const BUILDERS = {
   robot: () => buildRobotModel(),
   crewmate: buildCrewmate,
@@ -217,6 +232,7 @@ const BUILDERS = {
   minifig: buildMinifig,
   chef: buildChef,
   cyber: buildCyber,
+  xefi: buildXefi,
 };
 
 export const buildCharacterModel = (characterId) => (BUILDERS[characterId] ?? BUILDERS.robot)();
