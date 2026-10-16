@@ -10,12 +10,12 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 
 | Pièce | Ce qui s'y trouve |
 | --- | --- |
-| Accueil | Une session Claude attend votre réponse (question en fin de message ou demande de permission). Le personnage fait signe, avec une bulle « ! » |
+| Accueil | Une session Claude attend votre réponse (question en fin de message, demande de permission, ou spec Spec Kit à clarifier). Le personnage fait signe, avec une bulle « ! » |
 | Open space | Claude travaille |
 | Salle des bugs | Claude travaille sur un correctif : même chose que l'open space, mais pour les discussions qui corrigent un bug (voir ci-dessous). Elle occupe la place de l'ancienne salle des brouillons, devant l'atelier. Il n'y a plus de salle des brouillons ni d'attente |
 | Relecture | MR ouverte, en attente de relecture ou d'approbation, MR marquée Draft ou qui dépend d'une autre MR encore ouverte (la raison est indiquée sur sa fiche), et conversation où vous faites une review (voir ci-dessous) |
 | Merge | MR mergeable, sans blocage |
-| Atelier | Pipeline en échec, conflit ou rebase nécessaire |
+| Atelier | Pipeline en échec, conflit ou rebase nécessaire, et conversation au repos dont la fonctionnalité Spec Kit n'est pas terminée (voir ci-dessous) |
 | Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : salle à part, sur parquet, avec neuf canapés (9 places, une par canapé, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`), des petites tables et un bar à café au fond. Elle est devant la salle de merge, à droite |
 | Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause |
 | Salle de réunion | Une session a lancé plusieurs agents : elle s'y installe avec eux |
@@ -44,30 +44,47 @@ GitLab (API, jeton personnel) ────────────────�
 
 ## Démarrage rapide
 
-Prérequis : Node.js 22 ou plus.
+Prérequis : [Node.js](https://nodejs.org) 22 ou plus. Rien d'autre.
 
 ```bash
-npm install
-npm run dev
+npm start
 ```
 
-Cela ouvre le **mode démo** sur http://localhost:5173 : des données d'exemple et une douzaine de changements d'état à déclencher ou à regarder défiler.
+Cette seule commande installe les dépendances la première fois, crée votre fichier `.env`, démarre le serveur local et ouvre http://localhost:5174 dans le navigateur. Sans ligne de commande, double-cliquez sur `lancer.cmd` (Windows) ou lancez `./lancer.sh` (macOS, Linux, WSL). Pour l'arrêter : Ctrl+C. Si le serveur tourne déjà, la commande ouvre simplement la page.
 
-## Données en direct
+Option : `npm start -- --no-open` n'ouvre pas le navigateur.
 
-1. Copiez `.env.example` en `.env` et renseignez `GITLAB_URL` et `GITLAB_TOKEN` (jeton personnel avec la portée `read_api`).
-2. Installez les hooks dans les réglages Claude Code :
-   ```bash
-   npm run hooks:install
-   ```
-   L'installeur sauvegarde votre `settings.json`, conserve vos autres hooks et peut être annulé avec `npm run hooks:remove`. Les hooks s'appliquent aux sessions lancées après l'installation. Relancez la commande après une mise à jour qui ajoute des hooks (le compactage, par exemple) : les anciens sont remplacés.
-3. Lancez le serveur :
-   ```bash
-   npm run live
-   ```
-   puis ouvrez http://localhost:5174.
+### Voir vos vraies conversations
+
+La scène affiche vos conversations Claude Code dès que les hooks sont installés (une seule fois) :
+
+```bash
+npm run hooks:install
+```
+
+L'installeur sauvegarde votre `settings.json`, conserve vos autres hooks et peut être annulé avec `npm run hooks:remove`. Les hooks s'appliquent aux sessions lancées après l'installation. Relancez la commande après une mise à jour qui ajoute des hooks (le compactage, par exemple) : les anciens sont remplacés. `npm start` vous le rappelle tant qu'ils ne sont pas installés.
+
+Pour voir aussi vos merge requests GitLab, ouvrez `.env` (créé au premier lancement) et renseignez `GITLAB_URL` et `GITLAB_TOKEN` (jeton personnel avec la portée `read_api`), puis relancez. Sans cela, seules les conversations sont affichées.
 
 Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
+
+### Mode démo
+
+Pour essayer sans rien installer d'autre, `npm run demo` ouvre la scène sur http://localhost:5173 avec des données d'exemple et une douzaine de changements d'état à déclencher ou à regarder défiler. C'est aussi ce que vous voyez quand le serveur local n'est pas joignable.
+
+### Sous WSL ou sur un autre poste
+
+Lancez `npm start` là où tournent vos sessions Claude Code : le serveur lit `~/.claude` de la machine où il s'exécute, et détecte aussi les sessions de Windows depuis WSL et inversement. Sous WSL, le navigateur s'ouvre côté Windows ; sinon ouvrez http://localhost:5174.
+
+### Fonctionnalités Spec Kit
+
+Pour les projets qui utilisent [Spec Kit](https://github.com/github/spec-kit), la scène suit l'avancement de chaque fonctionnalité. Le serveur retrouve le dossier `specs/<branche>/` à partir de la branche et du dossier de travail de la conversation (en remontant dans les dossiers parents ; `feature/041-filtre` retrouve `specs/041-filtre`). Il lit seulement `tasks.md` et `spec.md`, rien n'est modifié.
+
+- **Atelier tant que ce n'est pas fini** : une conversation qui vous attend (son tour est terminé, sans question) va à l'atelier tant que toutes les tâches de `tasks.md` ne sont pas cochées, ou tant que `tasks.md` n'existe pas encore. Elle n'occupe plus la Pause ni les archives. Une conversation qui travaille reste à l'open space, une question reste à l'accueil, et une MR liée garde sa propre salle.
+- **Spec à clarifier** : si `spec.md` contient des `[NEEDS CLARIFICATION]`, la conversation va à l'accueil, même sans question dans le chat, avec le nombre de points à clarifier.
+- **Progression** : l'étiquette du robot affiche « Nom · 7/12 » et se remplit comme une jauge ; la fiche de la conversation détaille la fonctionnalité.
+- **Points** : chaque tâche cochée rapporte 3 points (regroupées en un seul gain), et la dernière tâche cochée termine la fonctionnalité (60 points, badge « Fonctionnalité livrée »). Comme pour les autres gains, seules les tâches cochées pendant que le serveur tourne comptent.
+- **Sous WSL** : un serveur WSL lit aussi les projets Windows (`C:\...` devient `/mnt/c/...`). Un serveur Windows ne lit pas les projets WSL.
 
 ### Score, niveaux et badges
 
@@ -80,13 +97,15 @@ La carte « Score » en haut de la colonne de droite transforme votre réactivit
 | Une MR sort de l'atelier (pipeline réparé, conflit résolu) | 20 |
 | Une MR passe de la relecture à la salle de merge | 15 |
 | Un brouillon devient prêt à relire (la MR n'est plus marquée Draft) | 5 |
+| Une tâche Spec Kit est cochée (par tâche) | 3 |
+| Une fonctionnalité Spec Kit est terminée (dernière tâche cochée) | 60 |
 | Une MR est mergée | 40 |
 | Plus personne n'attend à l'accueil | 30 |
 
 - **Enchaînement** : des actions à moins de trois minutes d'intervalle se multiplient (×1,25, ×1,5, … jusqu'à ×2).
 - **Niveaux** : Stagiaire, Junior (100 XP), Confirmé (300), Senior (700), Lead (1 500), Architecte (3 000), Directeur (6 000), Légende (12 000).
 - **Série** : nombre de jours consécutifs avec au moins une action. Elle tombe à zéro après un jour sans rien.
-- **Badges** : premier merge, dix merges, cinq réponses éclair, cinq réparations, accueil vide, séries de cinq et vingt jours, cent points dans la journée, enchaînement de quatre actions.
+- **Badges** : fonctionnalité livrée, cinq fonctionnalités, cinquante tâches, premier merge, dix merges, cinq réponses éclair, cinq réparations, accueil vide, séries de cinq et vingt jours, cent points dans la journée, enchaînement de quatre actions.
 
 Le score est calculé par le serveur et enregistré dans `~/.claude/eddy-office/score.json` : il survit aux redémarrages et ne dépend pas du navigateur. En mode démo, il est calculé dans la page à partir d'un exemple et repart de zéro à chaque réinitialisation. Le serveur ne compte qu'un changement d'état qu'il a vu : un merge fait pendant qu'il est arrêté ne rapporte rien.
 
@@ -162,9 +181,10 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 
 | Commande | Effet |
 | --- | --- |
-| `npm run dev` | Mode démo (Vite seul) |
-| `npm run live` | Serveur local, scène et données en direct |
-| `npm start` | Construit la scène puis sert la version de production |
+| `npm start` | Tout lancer : dépendances, `.env`, serveur local, navigateur |
+| `npm run demo` (ou `dev`) | Mode démo (Vite seul, données d'exemple) |
+| `npm run live` | Serveur local seul, sans installation ni navigateur |
+| `npm run start:prod` | Construit la scène puis sert la version de production |
 | `npm test` | Tests du serveur, des hooks, du moteur de score et des utilitaires de la scène |
 | `npm run hooks:install` | Installe les hooks dans les réglages Claude Code |
 | `npm run hooks:remove` | Retire les hooks (et la ligne d'état si elle a été installée) |
@@ -175,7 +195,7 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 Deux workflows GitHub Actions, dans `.github/workflows/` :
 
 - **CI** (`ci.yml`) : à chaque pull request et à chaque push sur `main`, les tests tournent sur Ubuntu et Windows avec Node 22 et 24, puis la scène est construite avec Vite et le dossier `dist` est conservé sept jours comme artefact. Un nouveau push sur la même branche annule l'exécution précédente.
-- **Release** (`release.yml`) : un tag `v*` (par exemple `git tag v0.3.0 && git push --tags`) relance les tests, construit la scène et publie une release GitHub avec une archive zip prête à lancer (`dist`, `server`, `shared`, `hooks`, `package.json`, `README.md`, `.env.example`). Après `npm ci --omit=dev` dans l'archive, `node server/index.js --production` sert la version construite.
+- **Release** (`release.yml`) : un tag `v*` (par exemple `git tag v0.3.0 && git push --tags`) relance les tests, construit la scène et publie une release GitHub avec une archive zip prête à lancer (`dist`, `server`, `shared`, `hooks`, `scripts`, `lancer.cmd`, `lancer.sh`, `package.json`, `README.md`, `.env.example`). Le serveur n'a aucune dépendance en production : dans l'archive décompressée, `npm start` (ou `lancer.cmd`) sert directement la version construite, sans rien installer.
 
 Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.glb` n'est pas redistribuable (voir plus bas), et le tableau de bord lit vos sessions locales, il n'a de sens que sur votre machine.
 

@@ -192,7 +192,13 @@ const connectorsPanel = createConnectorsPanel({
   selector: document.getElementById("connectors-selector"),
   chooseButton: document.getElementById("connectors-choose"),
 });
-const hud = createHud(document.getElementById("hud"));
+const hud = createHud(document.getElementById("hud"), {
+  onPick: (key) => {
+    ui.select(key);
+    const state = crowd.describe(key);
+    if (state) sessionModal.open({ spec: state.spec, room: state.target ?? state.room });
+  },
+});
 const effects = createEffects(scene);
 slamHandler = () => {
   const door = world.exitDoor;

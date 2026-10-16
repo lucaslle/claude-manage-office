@@ -8,7 +8,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const REPAIRED_ROOMS = new Set(["rev", "mrg"]);
 const READY_ROOMS = new Set(["rev", "mrg"]);
 
-export const POINTS = { reply: 10, quick_reply: 25, merge: 40, repair: 20, review: 15, ready: 5, inbox_zero: 30 };
+export const POINTS = { reply: 10, quick_reply: 25, merge: 40, repair: 20, review: 15, ready: 5, inbox_zero: 30, task: 3, feature: 60 };
 
 export const EVENT_LABELS = {
   reply: "Réponse",
@@ -18,6 +18,8 @@ export const EVENT_LABELS = {
   review: "Relecture",
   ready: "Brouillon terminé",
   inbox_zero: "Accueil vide",
+  task: "Tâche cochée",
+  feature: "Fonctionnalité terminée",
 };
 
 export const LEVELS = [
@@ -36,6 +38,9 @@ export const BADGES = [
   { id: "merges_10", name: "Dix merges", description: "Dix MR mergées.", earned: (score) => score.totals.merge >= 10 },
   { id: "quick_5", name: "Réflexe", description: "Cinq réponses en moins de cinq minutes.", earned: (score) => score.totals.quick_reply >= 5 },
   { id: "repair_5", name: "Réparateur", description: "Cinq MR sorties de l'atelier.", earned: (score) => score.totals.repair >= 5 },
+  { id: "feature_1", name: "Fonctionnalité livrée", description: "Toutes les tâches d'une fonctionnalité Spec Kit sont cochées.", earned: (score) => score.totals.feature >= 1 },
+  { id: "features_5", name: "Cinq fonctionnalités", description: "Cinq fonctionnalités Spec Kit terminées.", earned: (score) => score.totals.feature >= 5 },
+  { id: "tasks_50", name: "Cinquante tâches", description: "Cinquante tâches cochées.", earned: (score) => score.totals.task >= 50 },
   { id: "inbox_zero", name: "Accueil vide", description: "Plus personne n'attend votre réponse.", earned: (score) => score.totals.inbox_zero >= 1 },
   { id: "streak_5", name: "Cinq jours d'affilée", description: "Au moins une action cinq jours de suite.", earned: (score) => score.streak.days >= 5 },
   { id: "streak_20", name: "Vingt jours d'affilée", description: "Au moins une action vingt jours de suite.", earned: (score) => score.streak.days >= 20 },
@@ -95,12 +100,25 @@ const isSession = (character) => character.kind === "robot" && !character.agent;
 
 const waitingSessions = (entries) => entries.filter((entry) => entry.session && entry.room === "acc").length;
 
+// Une tâche cochée entre deux observations rapporte des points (autant d'événements que de tâches, regroupés en un seul),
+// et la dernière tâche cochée termine la fonctionnalité. Sans mesure précédente (premier passage), rien n'est attribué.
+const featureEvents = (previous, character) => {
+  const feature = character.feature;
+  if (!feature || previous.tasksDone === undefined) return [];
+  const events = [];
+  const delta = feature.done - previous.tasksDone;
+  if (delta > 0) events.push({ type: "task", key: character.key, name: delta > 1 ? `${character.name} (×${delta})` : character.name, times: delta });
+  if (feature.total > 0 && feature.done >= feature.total && previous.taskTotal > 0 && previous.tasksDone < previous.taskTotal) events.push({ type: "feature", key: character.key, name: character.name });
+  return events;
+};
+
 export const detectTransitions = ({ presence, characters, merged, scoredMerges, now }) => {
   const events = [];
   characters.forEach((character) => {
     const previous = presence[character.key];
     if (!previous) return;
     const name = character.name;
+    events.push(...featureEvents(previous, character));
     if (previous.draft && character.draft !== true) {
       events.push({ type: "ready", key: character.key, name });
       return;
@@ -132,7 +150,7 @@ const nextPresence = (presence, characters, now) =>
     characters.map((character) => {
       const previous = presence[character.key];
       const since = previous && previous.room === character.room ? previous.since : now;
-      return [character.key, { room: character.room, since, name: character.name, session: isSession(character), draft: character.draft === true }];
+      return [character.key, { room: character.room, since, name: character.name, session: isSession(character), draft: character.draft === true, tasksDone: character.feature?.done, taskTotal: character.feature?.total }];
     }),
   );
 
@@ -151,9 +169,10 @@ export const applyEvents = (score, events, now) => {
     const chained = isComboActive(next.combo, now);
     const count = chained ? next.combo.count + 1 : 1;
     next.combo = { count, lastAt: now, best: Math.max(next.combo.best, count) };
-    const points = Math.round(POINTS[event.type] * comboMultiplier(count));
+    const times = event.times ?? 1;
+    const points = Math.round(POINTS[event.type] * times * comboMultiplier(count));
     next.xp += points;
-    next.totals[event.type] += 1;
+    next.totals[event.type] = (next.totals[event.type] ?? 0) + times;
     next.today.points += points;
     const entry = { id: next.nextEventId, type: event.type, key: event.key, name: event.name, points, combo: count, at: now };
     next.nextEventId += 1;

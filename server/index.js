@@ -6,6 +6,7 @@ import { createLibrary } from "./library.js";
 import { createGitlabClient } from "./gitlab.js";
 import { loadConfig, rootDirectory } from "./config.js";
 import { buildCharacters } from "./model.js";
+import { readFeature } from "./speckit.js";
 import { detectWindowsSessionDirectories, detectWslSessionDirectories, readRecentlyEnded, readSessions } from "./sessions.js";
 import { readFreshestSnapshot } from "./snapshots.js";
 import { createScoreStore, scoreFilePath } from "./score-store.js";
@@ -51,7 +52,8 @@ const sessionRoutes = createSessionRoutes({
   findSession: (sessionId) => sessions.find((record) => record.sessionId === sessionId) ?? library.findRecord(sessionId),
 });
 
-const buildCurrentCharacters = () => buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000, restMs: config.restMinutes * 60 * 1000 });
+const readFeatures = () => new Map(sessions.map((session) => [session.sessionId, readFeature(session.cwd, session.branch)]).filter(([, feature]) => feature));
+const buildCurrentCharacters = () => buildCharacters({ sessions, mergeRequests, features: readFeatures(), now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000, restMs: config.restMinutes * 60 * 1000 });
 
 const composeState = (characters) => ({
   characters,

@@ -294,3 +294,59 @@ describe("salle des bugs", () => {
     assert.deepEqual(buildCharacters({ sessions: [session], mergeRequests: [], now }).map((character) => character.room), ["meet", "meet", "meet"]);
   });
 });
+
+describe("fonctionnalités Spec Kit", () => {
+  const now = 1_000_000_000;
+  const feature = (overrides = {}) => ({ name: "041-filtre", done: 7, total: 12, clarifications: 0, ...overrides });
+  const build = (sessionOverrides, featureValue, mergeRequests = []) =>
+    buildCharacters({ sessions: [makeSession({ updatedAt: now, ...sessionOverrides })], mergeRequests, features: new Map([["abc", featureValue]]), now })[0];
+
+  it("envoie à l'atelier une discussion au repos dont la fonctionnalité n'est pas terminée", () => {
+    const character = build({ state: "idle" }, feature());
+    assert.equal(character.room, "fix");
+    assert.match(character.why, /n'est pas terminée \(7 tâches sur 12\)/);
+    assert.equal(character.action, "Continuer la fonctionnalité (7 tâches sur 12).");
+    assert.deepEqual(character.feature, { name: "041-filtre", done: 7, total: 12, clarifications: 0 });
+  });
+
+  it("garde à l'atelier une fonctionnalité dont les tâches ne sont pas encore générées", () => {
+    const character = build({ state: "idle" }, feature({ done: 0, total: 0 }));
+    assert.equal(character.room, "fix");
+    assert.match(character.why, /tâches pas encore générées/);
+  });
+
+  it("laisse la discussion suivre son chemin habituel une fois toutes les tâches cochées", () => {
+    assert.equal(build({ state: "idle" }, feature({ done: 12 })).room, "pause");
+    assert.equal(build({ state: "idle", updatedAt: now - 3 * 3600 * 1000 }, feature({ done: 12 })).room, "arch");
+  });
+
+  it("ne dérange pas une discussion qui travaille, qui pose une question ou qui est en review", () => {
+    assert.equal(build({ state: "working" }, feature()).room, "open");
+    assert.equal(build({ state: "needs_reply" }, feature()).room, "acc");
+    assert.equal(build({ state: "idle", activity: "review" }, feature()).room, "rev");
+  });
+
+  it("envoie à l'accueil une spec qui a des points à clarifier", () => {
+    const character = build({ state: "idle" }, feature({ clarifications: 2 }));
+    assert.equal(character.room, "acc");
+    assert.match(character.why, /2 points à clarifier/);
+    assert.equal(character.action, "Répondre aux points à clarifier de la spec.");
+  });
+
+  it("garde la MR liée prioritaire sur l'atelier", () => {
+    const mergeRequest = makeMergeRequest({ projectId: 1, iid: 3, status: "mergeable", sourceBranch: "041-filtre" });
+    assert.equal(build({ state: "idle", branch: "041-filtre" }, feature(), [mergeRequest]).room, "mrg");
+  });
+
+  it("ne prend pas de place en Pause tant que la fonctionnalité n'est pas terminée", () => {
+    const sessions = [makeSession({ sessionId: "abc", state: "idle", updatedAt: now }), makeSession({ sessionId: "xyz", state: "idle", updatedAt: now - 1000 })];
+    const rooms = buildCharacters({ sessions, mergeRequests: [], features: new Map([["abc", feature()]]), now }).map((character) => character.room);
+    assert.deepEqual(rooms, ["fix", "pause"]);
+  });
+
+  it("ne change rien sans Spec Kit", () => {
+    const [character] = buildCharacters({ sessions: [makeSession({ state: "idle", updatedAt: now })], mergeRequests: [], now });
+    assert.equal(character.room, "pause");
+    assert.equal(character.feature, undefined);
+  });
+});

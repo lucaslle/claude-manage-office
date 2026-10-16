@@ -146,3 +146,42 @@ describe("levelFor et publicScore", () => {
     assert.equal(exposed.level.name, "Stagiaire");
   });
 });
+
+describe("fonctionnalités Spec Kit", () => {
+  const withFeature = (done, total, room = "fix") => session("s:1", room, { feature: { name: "041-filtre", done, total, clarifications: 0 } });
+
+  it("récompense chaque tâche cochée, regroupées en un seul événement", () => {
+    const score = seeded([withFeature(7, 12)]);
+    const result = advanceScore(score, { characters: [withFeature(10, 12)], now: T0 + MINUTE });
+    assert.deepEqual(result.events.map((event) => [event.type, event.points]), [["task", 9]]);
+    assert.equal(result.events[0].name, "s:1 (×3)");
+    assert.equal(result.score.totals.task, 3);
+  });
+
+  it("récompense la dernière tâche cochée et débloque le badge", () => {
+    const score = seeded([withFeature(11, 12)]);
+    const result = advanceScore(score, { characters: [withFeature(12, 12, "pause")], now: T0 + MINUTE });
+    assert.deepEqual(result.events.map((event) => event.type), ["task", "feature"]);
+    assert.ok(result.badges.includes("feature_1"));
+  });
+
+  it("n'attribue rien à la première observation ni sans nouvelle tâche", () => {
+    assert.deepEqual(advanceScore(createScore(), { characters: [withFeature(7, 12)], now: T0 }).events, []);
+    const score = seeded([withFeature(7, 12)]);
+    assert.deepEqual(advanceScore(score, { characters: [withFeature(7, 12)], now: T0 + MINUTE }).events, []);
+  });
+
+  it("ne compte pas deux fois une fonctionnalité déjà terminée", () => {
+    const score = seeded([withFeature(12, 12, "pause")]);
+    assert.deepEqual(advanceScore(score, { characters: [withFeature(12, 12, "arch")], now: T0 + MINUTE }).events, []);
+  });
+
+  it("accepte un ancien score enregistré sans ces compteurs", () => {
+    const old = createScore();
+    delete old.totals.task;
+    delete old.totals.feature;
+    const result = applyEvents(old, [{ type: "task", key: "s:1", name: "s:1", times: 2 }], T0);
+    assert.equal(result.score.totals.task, 2);
+    assert.equal(result.score.xp, 6);
+  });
+});

@@ -172,12 +172,13 @@ export const createProps = ({ animated, style = null }) => {
   const sofa = (parent, { x, z, ry = 0, length = 2.4, tone = M.navy }) => {
     const group = placed(parent, x, z, ry);
     const seats = Math.max(1, Math.round(length / 0.85));
-    box(group, length, 0.4, 0.92, M.graphite, 0, 0.22, 0);
+    // Le socle est légèrement rentré sous les accoudoirs et le dossier : deux faces dans le même plan clignotent (z-fighting).
+    box(group, length - 0.06, 0.4, 0.86, M.graphite, 0, 0.22, 0);
     for (let seat = 0; seat < seats; seat += 1) {
       const width = (length - 0.36) / seats;
       box(group, width - 0.03, 0.14, 0.74, tone, -length / 2 + 0.18 + width * (seat + 0.5), 0.5, 0.06);
     }
-    box(group, length, 0.52, 0.2, tone, 0, 0.74, -0.36);
+    box(group, length - 0.36, 0.52, 0.2, tone, 0, 0.74, -0.36);
     [-1, 1].forEach((side) => box(group, 0.18, 0.5, 0.92, tone, side * (length / 2 - 0.09), 0.5, 0));
     return group;
   };

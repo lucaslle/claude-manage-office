@@ -8,7 +8,7 @@ const PINNED_KEY = "eddy.library.pinned";
 const GROUPING_KEY = "eddy.library.grouping";
 const WARN_AT = 70;
 const BAD_AT = 90;
-const OFFLINE_MESSAGE = "La liste des discussions vient du serveur local : lancez npm run live, puis rechargez la page.";
+const OFFLINE_MESSAGE = "La liste des discussions vient du serveur local : lancez npm start, puis rechargez la page.";
 
 const readStored = (key) => {
   try {

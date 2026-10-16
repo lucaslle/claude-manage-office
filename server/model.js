@@ -4,7 +4,7 @@ const ROOM_ACTIONS = {
   bug: "Aucune, Claude corrige le bug.",
   rev: "Relire la MR.",
   mrg: "Merger la MR.",
-  fix: "Corriger la CI ou résoudre le conflit.",
+  fix: "Corriger la CI, résoudre le conflit ou continuer la fonctionnalité.",
   arch: "Aucune.",
   pause: "Aucune, la conversation est terminée.",
   meet: "Aucune, les agents travaillent ensemble.",
@@ -66,16 +66,24 @@ export const isBugFix = (session) => BUG_PATTERN.test(stripAccents(`${session.ti
 export const isResting = (session, { linkedMergeRequest, agentCount, now, restMs }) =>
   restMs > 0 && !linkedMergeRequest && agentCount === 0 && session.state === "idle" && !isReview(session) && now - session.updatedAt < restMs;
 
-const sessionRoom = (session, linkedMergeRequest, classification, agentCount, resting) => {
+// Une discussion qui travaille sur une fonctionnalité Spec Kit (specs/<branche>/) n'est pas finie tant que toutes ses tâches ne sont pas cochées.
+const isUnfinished = (feature) => Boolean(feature) && !(feature.total > 0 && feature.done >= feature.total);
+const needsClarification = (feature) => Boolean(feature) && feature.clarifications > 0;
+
+const sessionRoom = (session, linkedMergeRequest, classification, agentCount, resting, feature) => {
   if (session.state === "needs_reply") return "acc";
   if (isReview(session)) return "rev";
   if (agentCount >= MEETING_MIN_AGENTS) return "meet";
   if (agentCount > 0 || session.state === "working") return isBugFix(session) ? "bug" : "open";
+  if (needsClarification(feature)) return "acc";
   if (linkedMergeRequest) return classification.room;
+  if (isUnfinished(feature)) return "fix";
   return resting ? "pause" : "arch";
 };
 
-const sessionWhy = (session, linkedMergeRequest, classification, agentCount, resting) => {
+const taskCount = (feature) => (feature.total > 0 ? `${feature.done} tâche${feature.done > 1 ? "s" : ""} sur ${feature.total}` : "tâches pas encore générées");
+
+const sessionWhy = (session, linkedMergeRequest, classification, agentCount, resting, feature) => {
   if (session.state === "needs_reply") {
     return session.lastMessage ? `Claude attend votre réponse : ${truncate(session.lastMessage, WHY_LENGTH)}` : "Claude attend votre réponse.";
   }
@@ -83,16 +91,25 @@ const sessionWhy = (session, linkedMergeRequest, classification, agentCount, res
   if (agentCount >= MEETING_MIN_AGENTS) return `Claude a lancé ${agentCount} agents : ils se réunissent en salle de réunion.`;
   if (agentCount > 0) return "Claude a lancé un agent et attend son résultat.";
   if (session.state === "working") return isBugFix(session) ? "Claude corrige un bug : la discussion travaille dans la salle des bugs." : "Claude travaille sur la tâche en cours.";
+  if (needsClarification(feature)) return `La spec « ${feature.name} » a ${feature.clarifications} point${feature.clarifications > 1 ? "s" : ""} à clarifier : Claude attend vos précisions.`;
   if (linkedMergeRequest) return classification.reason;
+  if (isUnfinished(feature)) return `La fonctionnalité « ${feature.name} » n'est pas terminée (${taskCount(feature)}) : la discussion attend que vous continuiez, à l'atelier.`;
   if (resting) return "Terminée, sans question ni MR : elle fait une pause avant de passer aux archives.";
   return "Aucune question en attente, aucune MR ouverte.";
 };
 
 export const isCompacting = (session, now) => Number(session.compactingSince) > 0 && now - session.compactingSince <= COMPACTING_MAX_AGE_MS;
 
+const sessionAction = (session, room, feature) => {
+  if (room === "rev" && isReview(session)) return REVIEW_ACTION;
+  if (room === "acc" && needsClarification(feature) && session.state !== "needs_reply") return "Répondre aux points à clarifier de la spec.";
+  if (room === "fix" && isUnfinished(feature)) return `Continuer la fonctionnalité (${taskCount(feature)}).`;
+  return ROOM_ACTIONS[room];
+};
+
 const sessionName = (session) => truncate(session.title || session.cwd.split(/[\\/]/).pop() || "Session", NAME_LENGTH);
 
-export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), agentMaxAgeMs = DEFAULT_AGENT_MAX_AGE_MS, restMs = DEFAULT_REST_MS }) => {
+export const buildCharacters = ({ sessions, mergeRequests, features = new Map(), now = Date.now(), agentMaxAgeMs = DEFAULT_AGENT_MAX_AGE_MS, restMs = DEFAULT_REST_MS }) => {
   const byKey = new Map(mergeRequests.map((mergeRequest) => [mergeRequest.key, mergeRequest]));
   const byBranch = new Map();
   mergeRequests.forEach((mergeRequest) => {
@@ -106,21 +123,21 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
 
   const contexts = visibleSessions.slice(0, MAX_SESSIONS).map((session) => {
     const linked = session.branch ? byBranch.get(session.branch) : undefined;
-    return { session, linked, classification: linked ? classifyMergeRequest(linked, byKey) : null, agents: activeAgents(session, now, agentMaxAgeMs) };
+    return { session, linked, classification: linked ? classifyMergeRequest(linked, byKey) : null, agents: activeAgents(session, now, agentMaxAgeMs), feature: features.get(session.sessionId) ?? null };
   });
 
   // La zone Pause n'a que quelques places : les discussions terminées les plus récentes d'abord, les autres vont aux archives.
   const restingIds = new Set(
     contexts
-      .filter(({ session, linked, agents }) => isResting(session, { linkedMergeRequest: linked, agentCount: agents.length, now, restMs }))
+      .filter(({ session, linked, agents, feature }) => !isUnfinished(feature) && !needsClarification(feature) && isResting(session, { linkedMergeRequest: linked, agentCount: agents.length, now, restMs }))
       .sort((first, second) => second.session.updatedAt - first.session.updatedAt)
       .slice(0, PAUSE_SEATS)
       .map(({ session }) => session.sessionId),
   );
 
-  contexts.forEach(({ session, linked, classification, agents }) => {
+  contexts.forEach(({ session, linked, classification, agents, feature }) => {
     const resting = restingIds.has(session.sessionId);
-    const room = sessionRoom(session, linked, classification, agents.length, resting);
+    const room = sessionRoom(session, linked, classification, agents.length, resting, feature);
     if (linked) linkedKeys.add(linked.key);
     const mergeRequestLine = linked ? describeMergeRequest(linked) : session.branch ? `Branche ${session.branch}` : "Aucune";
     characters.push({
@@ -130,9 +147,10 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
       room,
       name: sessionName(session),
       title: session.title || sessionName(session),
-      why: sessionWhy(session, linked, classification, agents.length, resting),
+      why: sessionWhy(session, linked, classification, agents.length, resting, feature),
       mr: mergeRequestLine,
-      action: room === "rev" && isReview(session) ? REVIEW_ACTION : ROOM_ACTIONS[room],
+      action: sessionAction(session, room, feature),
+      feature: feature ? { name: feature.name, done: feature.done, total: feature.total, clarifications: feature.clarifications } : undefined,
       url: linked?.url ?? "",
       tint: TINTS[hashString(session.sessionId) % TINTS.length],
       compacting: isCompacting(session, now),

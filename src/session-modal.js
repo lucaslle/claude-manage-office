@@ -40,11 +40,18 @@ const pickDigest = (messages) =>
     .filter(Boolean)
     .sort((first, second) => messages.indexOf(first) - messages.indexOf(second));
 
+const describeFeature = (feature) => {
+  const tasks = feature.total > 0 ? `${feature.done} tâche${feature.done > 1 ? "s" : ""} sur ${feature.total}` : "tâches pas encore générées";
+  const clarifications = feature.clarifications > 0 ? `, ${feature.clarifications} point${feature.clarifications > 1 ? "s" : ""} à clarifier` : "";
+  return `${feature.name} : ${tasks}${clarifications}`;
+};
+
 const buildFacts = (spec) => {
   const facts = element("dl", "facts");
   [
     ["Pourquoi ici", spec.why],
     ["Merge request", spec.mr],
+    ...(spec.feature ? [["Fonctionnalité", describeFeature(spec.feature)]] : []),
     ["Action", spec.action],
   ].forEach(([label, value]) => facts.append(element("dt", "", label), element("dd", "", value)));
   return facts;
