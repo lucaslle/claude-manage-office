@@ -48,6 +48,8 @@ const QUALITY_LEVELS = {
   high: { pixelRatio: 2, ao: true, bloom: true, tiltShift: true },
 };
 
+const DEFAULT_QUALITY = "low";
+
 export const createRenderPipeline = ({ renderer, scene, camera, container }) => {
   let width = container.clientWidth;
   let height = container.clientHeight;
@@ -66,7 +68,7 @@ export const createRenderPipeline = ({ renderer, scene, camera, container }) => 
   composer.addPass(tiltShiftPass);
   composer.addPass(outputPass);
 
-  let levelName = "medium";
+  let levelName = DEFAULT_QUALITY;
 
   const resize = () => {
     width = container.clientWidth;
@@ -94,7 +96,7 @@ export const createRenderPipeline = ({ renderer, scene, camera, container }) => 
     else composer.render();
   };
 
-  setQuality("medium");
+  setQuality(DEFAULT_QUALITY);
 
   return { render, resize, setQuality, getQuality: () => levelName };
 };

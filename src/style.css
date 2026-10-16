@@ -8,6 +8,7 @@
   --color-accent: #3566f0;
   --color-accent-soft: #e7edff;
   --color-on-accent: #ffffff;
+  --color-accent-2: #8f6bff;
   --color-ok: #12a150;
   --color-warn: #cf8200;
   --color-bad: #d63b3a;
@@ -57,6 +58,77 @@
   color-scheme: dark;
 }
 
+/* Thèmes d'entreprise : l'absence de data-brand, ou data-brand="eddy", garde les couleurs ci-dessus.
+   Les thèmes « auto » utilisent light-dark(clair, sombre) et suivent le mode clair ou sombre ;
+   les thèmes toujours sombres redéfinissent tout et forcent color-scheme. */
+:root[data-brand="noir-rouge"] {
+  --color-bg: #0a0a0c;
+  --color-surface: #131316;
+  --color-surface-2: #1b1b1f;
+  --color-text: #f3f3f4;
+  --color-muted: #a1a1a8;
+  --color-line: #2a2a2f;
+  --color-accent: #ff4d47;
+  --color-accent-soft: #2c1214;
+  --color-on-accent: #1c0606;
+  --color-accent-2: #ff9a5c;
+  --color-ok: #3ccf7e;
+  --color-warn: #f0b13a;
+  --color-bad: #ff9c97;
+  --color-ghost: #d9726d;
+  --room-label-color: rgba(240, 240, 245, 0.62);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+:root[data-brand="marine-or"] {
+  --color-bg: #08111f;
+  --color-surface: #0f1c33;
+  --color-surface-2: #14253f;
+  --color-text: #eef2fa;
+  --color-muted: #9fb0cc;
+  --color-line: #223656;
+  --color-accent: #e0b64a;
+  --color-accent-soft: #2a2411;
+  --color-on-accent: #1a1405;
+  --color-accent-2: #f2d98b;
+  --color-ok: #3ccf7e;
+  --color-warn: #f0b13a;
+  --color-bad: #ff7a78;
+  --color-ghost: #7fa0e0;
+  --room-label-color: rgba(238, 242, 250, 0.62);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+:root[data-brand="terracotta"] {
+  --color-bg: light-dark(#f6f1ea, #14100d);
+  --color-surface: light-dark(#fffdf9, #1d1814);
+  --color-surface-2: light-dark(#faf5ee, #251f19);
+  --color-text: light-dark(#241a12, #f3ece4);
+  --color-muted: light-dark(#6f6254, #aa9c8c);
+  --color-line: light-dark(#eadfd0, #342b22);
+  --color-accent: light-dark(#b94d27, #f0906a);
+  --color-accent-soft: light-dark(#fbe9df, #3a2217);
+  --color-on-accent: light-dark(#ffffff, #2a1206);
+  --color-accent-2: light-dark(#e0a458, #f6c17c);
+  --color-ghost: light-dark(#a8643f, #d89a78);
+}
+
+:root[data-brand="foret"] {
+  --color-bg: light-dark(#eef4f0, #0a1310);
+  --color-surface: light-dark(#ffffff, #101c17);
+  --color-surface-2: light-dark(#f4f9f6, #162620);
+  --color-text: light-dark(#0f1f17, #e6f1ea);
+  --color-muted: light-dark(#566a5f, #93ab9d);
+  --color-line: light-dark(#dde8e1, #213329);
+  --color-accent: light-dark(#1a7a50, #4fd69a);
+  --color-accent-soft: light-dark(#e1f3ea, #12301f);
+  --color-on-accent: light-dark(#ffffff, #05241a);
+  --color-accent-2: light-dark(#4aa3c7, #7fd0e8);
+  --color-ghost: light-dark(#3c7a64, #6fb99d);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -104,7 +176,7 @@ body {
   width: 22px;
   height: 22px;
   border-radius: 7px;
-  background: conic-gradient(from 140deg, var(--color-accent), #8f6bff, var(--color-accent));
+  background: conic-gradient(from 140deg, var(--color-accent), var(--color-accent-2), var(--color-accent));
 }
 
 .brand__title {
@@ -153,6 +225,81 @@ body {
   align-items: center;
   gap: 8px 10px;
   margin-left: auto;
+}
+
+.brand-picker {
+  position: relative;
+}
+
+.brand-picker__swatch,
+.brand-item__swatch {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--swatch-main) 50%, var(--swatch-base) 50%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 28%, transparent);
+}
+
+.brand-picker__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card), 0 12px 32px rgba(8, 12, 20, 0.25);
+}
+
+.brand-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.brand-item:hover,
+.brand-item:focus-visible {
+  background: var(--color-surface-2);
+  outline: none;
+}
+
+.brand-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.brand-item[aria-checked="true"] {
+  background: var(--color-accent-soft);
+}
+
+.brand-item__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.brand-item__label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.brand-item__hint {
+  color: var(--color-muted);
+  font-size: 12px;
 }
 
 .segmented {
@@ -837,7 +984,7 @@ body {
 }
 
 .room-label {
-  color: rgba(35, 45, 60, 0.62);
+  color: var(--room-label-color, rgba(35, 45, 60, 0.62));
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 700;
@@ -927,7 +1074,7 @@ body {
 .score__fill {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--color-accent), #8f6bff);
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2));
   transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 

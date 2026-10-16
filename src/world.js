@@ -199,11 +199,14 @@ export const buildWorld = async (scene) => {
   });
 
   const slabSize = ROOM_SIZE * 3 + 2.4;
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(slabSize, 0.6, slabSize), standardMaterial(0xc2c9d3, { roughness: 0.9 }));
+  const groundMaterial = standardMaterial(0xc2c9d3, { roughness: 0.9 });
+  const plinthMaterial = standardMaterial(0x3a4049, { roughness: 0.7 });
+  const floorMaterials = [];
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(slabSize, 0.6, slabSize), groundMaterial);
   ground.position.y = -0.36;
   ground.receiveShadow = true;
   world.add(ground);
-  const plinth = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE * 3 + 0.6, 0.08, ROOM_SIZE * 3 + 0.6), standardMaterial(0x3a4049, { roughness: 0.7 }));
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE * 3 + 0.6, 0.08, ROOM_SIZE * 3 + 0.6), plinthMaterial);
   plinth.position.y = -0.1;
   plinth.receiveShadow = true;
   world.add(plinth);
@@ -215,6 +218,7 @@ export const buildWorld = async (scene) => {
     roomGroups[roomId] = group;
     const floorConfig = FLOORS[roomId];
     const floorMaterial = new THREE.MeshStandardMaterial({ map: makeFloorTexture(floorConfig.color, floorConfig.kind), roughness: floorConfig.kind === "tile" ? 0.45 : 0.85, metalness: 0 });
+    floorMaterials.push(floorMaterial);
     const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE, 0.12, ROOM_SIZE), floorMaterial);
     floor.position.y = -0.06;
     floor.receiveShadow = true;
@@ -488,5 +492,14 @@ export const buildWorld = async (scene) => {
     });
   };
 
-  return { world, roomGroups, update, setRoomOverflow, gateBeam, exitDoor };
+  const applyPalette = (palette) => {
+    plasterMaterial.color.set(palette.plaster);
+    frameMaterial.color.set(palette.frame);
+    groundMaterial.color.set(palette.ground);
+    plinthMaterial.color.set(palette.plinth);
+    glazingMaterial.emissive.set(palette.glazing);
+    floorMaterials.forEach((material) => material.color.set(palette.floorTint));
+  };
+
+  return { world, roomGroups, update, setRoomOverflow, applyPalette, gateBeam, exitDoor };
 };
