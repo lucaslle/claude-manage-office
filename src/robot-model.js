@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
-const HIP_Y = 0.54;
-const ARM_REST = 0.14;
+export const HIP_Y = 0.54;
+export const ARM_REST = 0.14;
 const TURN = Math.PI * 2;
 
 const CHANNELS = {
@@ -43,7 +43,8 @@ const clip = (name, duration, tracks) =>
     }),
   );
 
-const buildClips = () => [
+// Tous les personnages partagent ce squelette (Body, Hips, Torso, Head, LegL/R, ShinL/R, ArmL/R, ForearmL/R) : les clips s'appliquent à n'importe quel modèle qui le respecte.
+export const buildClips = () => [
   clip("Idle", 3.2, {
     "Hips.position[y]": spread(3.2, [HIP_Y, HIP_Y + 0.02, HIP_Y]),
     "Head.rotation[y]": spread(3.2, [0, 0.18, 0, -0.12, 0]),
@@ -155,12 +156,13 @@ const starShape = (outer, inner) => {
   return shape;
 };
 
-export const buildRobotModel = () => {
+// options : couleurs du robot, yeux lumineux, et decorate({ head, torso, hips, mesh, group, materials }) pour ajouter des accessoires (chapeau, antenne…).
+export const buildRobotModel = ({ clay = CLAUDE_TERRACOTTA, ink = 0x24201c, cream = CLAUDE_CREAM, metalness = 0.02, decorate = null } = {}) => {
   const mainMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.05 });
   mainMaterial.name = "Main";
-  const clayMaterial = new THREE.MeshStandardMaterial({ color: CLAUDE_TERRACOTTA, roughness: 0.6, metalness: 0.02 });
-  const inkMaterial = new THREE.MeshStandardMaterial({ color: 0x24201c, roughness: 0.5, metalness: 0.1 });
-  const creamMaterial = new THREE.MeshStandardMaterial({ color: CLAUDE_CREAM, roughness: 0.7, metalness: 0 });
+  const clayMaterial = new THREE.MeshStandardMaterial({ color: clay, roughness: 0.6, metalness });
+  const inkMaterial = new THREE.MeshStandardMaterial({ color: ink, roughness: 0.5, metalness: 0.1 });
+  const creamMaterial = new THREE.MeshStandardMaterial({ color: cream, roughness: 0.7, metalness: 0 });
   const shineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6, roughness: 0.4 });
 
   const mesh = (geometry, material, parent, x = 0, y = 0, z = 0) => {
@@ -212,6 +214,8 @@ export const buildRobotModel = () => {
   };
   arm("L", -1);
   arm("R", 1);
+
+  decorate?.({ head, torso, hips, mesh, group, materials: { main: mainMaterial, clay: clayMaterial, ink: inkMaterial, cream: creamMaterial, shine: shineMaterial } });
 
   scene.traverse((node) => {
     if (!node.isMesh) return;

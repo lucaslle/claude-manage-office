@@ -3,6 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildWorld } from "./world.js";
+import { loadStyle } from "./styles/index.js";
+import { disposeObject } from "./textures.js";
+import { buildCharacterModel, characterFor } from "./character-models.js";
 import { createCharacters, loadCharacterModels } from "./characters.js";
 import { createRenderPipeline } from "./postfx.js";
 import { createUi } from "./ui.js";
@@ -56,7 +59,44 @@ const applyScenePalette = () => {
     lights.sun.intensity = SUN_INTENSITY * palette.light;
   }
 };
-const theme = initTheme({ toggleButton: document.getElementById("theme-toggle"), onChange: applyScenePalette });
+const styleIdOf = () => currentBrand().style ?? "office";
+let builtStyleId = null;
+let mounting = Promise.resolve();
+let lastOverflow = {};
+let slamHandler = null;
+let crowdRef = null;
+
+// Changer de thème d'entreprise peut changer tout le décor : on reconstruit alors le bâtiment, sans toucher aux personnages.
+const mountWorld = async () => {
+  const styleId = styleIdOf();
+  if (styleId === builtStyleId) return;
+  const next = await buildWorld(scene, await loadStyle(styleId));
+  if (world) {
+    world.world.traverse((node) => {
+      if (node.isCSS2DObject) node.element.remove();
+    });
+    scene.remove(world.world);
+    disposeObject(world.world);
+  }
+  world = next;
+  builtStyleId = styleId;
+  if (slamHandler) world.exitDoor.onSlam(slamHandler);
+  world.setRoomOverflow(lastOverflow);
+  crowdRef?.setRobotModel(buildCharacterModel(characterFor(styleId)));
+  applyScenePalette();
+};
+
+const syncWorldStyle = () => {
+  mounting = mounting.then(mountWorld).catch((error) => console.error("Impossible de construire le décor", error));
+  return mounting;
+};
+
+const handleThemeChange = () => {
+  applyScenePalette();
+  syncWorldStyle();
+};
+
+const theme = initTheme({ toggleButton: document.getElementById("theme-toggle"), onChange: handleThemeChange });
 createBrandMenu({ button: document.getElementById("brand-button"), menu: document.getElementById("brand-menu"), onSelect: theme.setBrand });
 applyScenePalette();
 const environmentGenerator = new THREE.PMREMGenerator(renderer);
@@ -90,6 +130,7 @@ const hemisphere = new THREE.HemisphereLight(0xffffff, 0x9aa4b2, HEMISPHERE_INTE
 scene.add(hemisphere);
 const sun = new THREE.DirectionalLight(0xfff4e5, SUN_INTENSITY);
 sun.position.set(-16, 36, 24);
+sun.target.position.set(0, 0, 0);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -26;
@@ -101,6 +142,7 @@ sun.shadow.camera.far = 110;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
 scene.add(sun);
+scene.add(sun.target);
 lights = { hemisphere, sun };
 applyScenePalette();
 
@@ -119,14 +161,23 @@ const resize = () => {
 new ResizeObserver(resize).observe(stage);
 resize();
 
-const [builtWorld, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
-world = builtWorld;
-applyScenePalette();
+const [models] = await Promise.all([loadCharacterModels(characterFor(styleIdOf())), syncWorldStyle()]);
 const COMPACT_DUST = 18;
+// La porte d'entrée change quand le décor est reconstruit : les personnages passent par ce relais, qui vise toujours la porte actuelle.
+const exitDoor = {
+  get x() {
+    return world.exitDoor.x;
+  },
+  get z() {
+    return world.exitDoor.z;
+  },
+  open: () => world.exitDoor.open(),
+  slam: () => world.exitDoor.slam(),
+};
 const crowd = createCharacters({
   scene,
   models,
-  exitDoor: world.exitDoor,
+  exitDoor,
   onCompacted: (key) => {
     const position = crowd.positionOf(key);
     if (!position) return;
@@ -134,6 +185,7 @@ const crowd = createCharacters({
     effects.gain({ x: position.x, y: position.y + 0.9, z: position.z }, "Compacté !", "compact");
   },
 });
+crowdRef = crowd;
 const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta") });
 const connectorsPanel = createConnectorsPanel({
   body: document.getElementById("connectors-body"),
@@ -142,12 +194,13 @@ const connectorsPanel = createConnectorsPanel({
 });
 const hud = createHud(document.getElementById("hud"));
 const effects = createEffects(scene);
-world.exitDoor.onSlam(() => {
+slamHandler = () => {
   const door = world.exitDoor;
   effects.shake(0.3);
   effects.gain({ x: door.x, y: 2.7, z: door.z }, "BAM !", "slam");
   effects.burst({ x: door.x, y: 1.2, z: door.z }, 30, "dust");
-});
+};
+world.exitDoor.onSlam(slamHandler);
 const shakeOffset = new THREE.Vector3();
 const scorePanel = createScorePanel({ body: document.getElementById("score-body"), meta: document.getElementById("score-meta") });
 const scoreTracker = createScoreTracker({
@@ -157,7 +210,10 @@ const scoreTracker = createScoreTracker({
   effects,
   log: (message) => ui.log(message),
 });
-const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: world.setRoomOverflow, usagePanel, connectorsPanel, hud, scoreTracker });
+const ui = createUi({ crowd, demoSpecs: CHARACTERS, onOverflow: (overflow) => {
+    lastOverflow = overflow;
+    world.setRoomOverflow(overflow);
+  }, usagePanel, connectorsPanel, hud, scoreTracker });
 
 const sessionModal = createSessionModal({ isLive: ui.isLive });
 

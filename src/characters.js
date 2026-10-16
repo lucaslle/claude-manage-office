@@ -2,8 +2,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, GATE_LOCAL, roomCenters } from "./layout.js";
-import { buildRobotModel } from "./robot-model.js";
+import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, GATE_LOCAL, roomCenters, roomAt, columnAt, rowAt, columnToX, rowToZ } from "./layout.js";
+import { buildCharacterModel } from "./character-models.js";
 
 const WALK_SPEED = 2.8;
 const STORM_SPEED_RATIO = 1.7;
@@ -57,9 +57,9 @@ const loadModel = (url) =>
     new GLTFLoader().load(url, resolve, undefined, reject);
   });
 
-export const loadCharacterModels = async () => {
+export const loadCharacterModels = async (characterId = "robot") => {
   const mr = await loadModel("/models/Xbot.glb");
-  return { robot: buildRobotModel(), mr };
+  return { robot: buildCharacterModel(characterId), mr };
 };
 
 const wrapAngle = (angle) => {
@@ -69,27 +69,30 @@ const wrapAngle = (angle) => {
   return wrapped;
 };
 
-const gridIndex = (value) => Math.min(2, Math.max(0, Math.floor((value + 1.5 * ROOM_SIZE) / ROOM_SIZE)));
-
-const buildRoute = (fromX, fromZ, toX, toZ) => {
+export const buildRoute = (fromX, fromZ, toX, toZ) => {
   const points = [];
-  let column = gridIndex(fromX);
-  let row = gridIndex(fromZ);
-  const targetColumn = gridIndex(toX);
-  const targetRow = gridIndex(toZ);
-  while (column !== targetColumn) {
-    const step = targetColumn > column ? 1 : -1;
-    const borderX = (column - 1) * ROOM_SIZE + (step * ROOM_SIZE) / 2;
-    const doorZ = (row - 1) * ROOM_SIZE + DOOR_ALONG;
-    points.push({ x: borderX - step * APPROACH_DISTANCE, z: doorZ }, { x: borderX, z: doorZ }, { x: borderX + step * APPROACH_DISTANCE, z: doorZ });
-    column += step;
-  }
-  while (row !== targetRow) {
-    const step = targetRow > row ? 1 : -1;
-    const borderZ = (row - 1) * ROOM_SIZE + (step * ROOM_SIZE) / 2;
-    const doorX = (column - 1) * ROOM_SIZE + DOOR_ACROSS;
-    points.push({ x: doorX, z: borderZ - step * APPROACH_DISTANCE }, { x: doorX, z: borderZ }, { x: doorX, z: borderZ + step * APPROACH_DISTANCE });
-    row += step;
+  let column = columnAt(fromX);
+  let row = rowAt(fromZ);
+  const targetColumn = columnAt(toX);
+  const targetRow = rowAt(toZ);
+  const columnStep = () => (targetColumn > column ? 1 : -1);
+  const rowStep = () => (targetRow > row ? 1 : -1);
+  while (column !== targetColumn || row !== targetRow) {
+    if (column !== targetColumn && roomAt(column + columnStep(), row)) {
+      const step = columnStep();
+      const borderX = columnToX(column) + (step * ROOM_SIZE) / 2;
+      const doorZ = rowToZ(row) + DOOR_ALONG;
+      points.push({ x: borderX - step * APPROACH_DISTANCE, z: doorZ }, { x: borderX, z: doorZ }, { x: borderX + step * APPROACH_DISTANCE, z: doorZ });
+      column += step;
+    } else if (row !== targetRow) {
+      const step = rowStep();
+      const borderZ = rowToZ(row) + (step * ROOM_SIZE) / 2;
+      const doorX = columnToX(column) + DOOR_ACROSS;
+      points.push({ x: doorX, z: borderZ - step * APPROACH_DISTANCE }, { x: doorX, z: borderZ }, { x: doorX, z: borderZ + step * APPROACH_DISTANCE });
+      row += step;
+    } else {
+      break;
+    }
   }
   points.push({ x: toX, z: toZ });
   return points;
@@ -129,19 +132,19 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
   scene.add(selectionRing);
   let selectedKey = null;
 
-  const buildCharacter = (spec) => {
+  // Pose le modèle 3D d'un personnage sous sa racine : mise à l'échelle, couleur de la conversation, animations.
+  const attachModel = (root, spec, source) => {
     const isRobot = spec.kind === "robot";
-    const source = isRobot ? models.robot : models.mr;
-    const root = new THREE.Group();
-    scene.add(root);
     const model = cloneSkinned(source.scene);
-    root.add(model);
-    root.updateMatrixWorld(true);
+    const probe = new THREE.Group();
+    probe.add(model);
+    probe.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model, true);
     const characterHeight = isRobot ? (spec.agent ? ROBOT_HEIGHT * AGENT_HEIGHT_RATIO : ROBOT_HEIGHT) : MR_HEIGHT;
     const scale = characterHeight / (bounds.max.y - bounds.min.y);
     model.scale.setScalar(scale);
     model.position.y = -bounds.min.y * scale;
+    root.add(model);
 
     const ownedMaterials = [];
     model.traverse((node) => {
@@ -170,6 +173,14 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     source.animations.forEach((clip) => {
       actions[clip.name] = mixer.clipAction(clip);
     });
+    return { model, mixer, actions, ownedMaterials, characterHeight };
+  };
+
+  const buildCharacter = (spec) => {
+    const isRobot = spec.kind === "robot";
+    const root = new THREE.Group();
+    scene.add(root);
+    const { model, mixer, actions, ownedMaterials, characterHeight } = attachModel(root, spec, isRobot ? models.robot : models.mr);
 
     const labelElement = document.createElement("div");
     labelElement.className = !isRobot ? "tag tag--mr" : spec.agent ? "tag tag--agent" : "tag";
@@ -188,6 +199,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     const character = {
       spec,
       root,
+      model,
       mixer,
       actions,
       ownedMaterials,
@@ -635,6 +647,22 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     };
   };
 
+  // Change l'apparence de tous les robots (nouvel univers) sans les déplacer : ils gardent leur pièce, leur place et leur pose.
+  const setRobotModel = (source) => {
+    models.robot = source;
+    order.forEach((key) => {
+      const character = characters[key];
+      if (character.spec.kind !== "robot") return;
+      character.root.remove(character.model);
+      character.mixer.stopAllAction();
+      character.ownedMaterials.forEach((material) => material.dispose());
+      pickables = pickables.filter((node) => node.userData.key !== key);
+      const fresh = attachModel(character.root, character.spec, source);
+      Object.assign(character, { model: fresh.model, mixer: fresh.mixer, actions: fresh.actions, ownedMaterials: fresh.ownedMaterials, current: null });
+      playClip(character, baseClip(character), { once: SEATED_POSES.has(character.pose), fade: 0 });
+    });
+  };
+
   const positionOf = (key) => {
     const character = characters[key];
     if (!character || character.gone) return null;
@@ -651,6 +679,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     setSelected,
     describe,
     positionOf,
+    setRobotModel,
     getPickables: () => pickables,
     keys: () => order.slice(),
   };

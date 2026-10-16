@@ -5,7 +5,7 @@ const MAX_COMBO_MULTIPLIER = 2;
 const EVENT_HISTORY = 30;
 const MERGED_HISTORY = 200;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const REPAIRED_ROOMS = new Set(["rev", "mrg", "wait", "draft"]);
+const REPAIRED_ROOMS = new Set(["rev", "mrg"]);
 const READY_ROOMS = new Set(["rev", "mrg"]);
 
 export const POINTS = { reply: 10, quick_reply: 25, merge: 40, repair: 20, review: 15, ready: 5, inbox_zero: 30 };
@@ -99,16 +99,19 @@ export const detectTransitions = ({ presence, characters, merged, scoredMerges, 
   const events = [];
   characters.forEach((character) => {
     const previous = presence[character.key];
-    if (!previous || previous.room === character.room) return;
+    if (!previous) return;
     const name = character.name;
+    if (previous.draft && character.draft !== true) {
+      events.push({ type: "ready", key: character.key, name });
+      return;
+    }
+    if (previous.room === character.room) return;
     if (previous.room === "acc" && isSession(character)) {
       events.push({ type: now - previous.since <= QUICK_REPLY_MS ? "quick_reply" : "reply", key: character.key, name });
     } else if (previous.room === "fix" && REPAIRED_ROOMS.has(character.room)) {
       events.push({ type: "repair", key: character.key, name });
     } else if (previous.room === "rev" && character.room === "mrg") {
       events.push({ type: "review", key: character.key, name });
-    } else if (previous.room === "draft" && READY_ROOMS.has(character.room)) {
-      events.push({ type: "ready", key: character.key, name });
     }
   });
   const alreadyScored = new Set(scoredMerges);
@@ -129,7 +132,7 @@ const nextPresence = (presence, characters, now) =>
     characters.map((character) => {
       const previous = presence[character.key];
       const since = previous && previous.room === character.room ? previous.since : now;
-      return [character.key, { room: character.room, since, name: character.name, session: isSession(character) }];
+      return [character.key, { room: character.room, since, name: character.name, session: isSession(character), draft: character.draft === true }];
     }),
   );
 

@@ -102,6 +102,11 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
       spec.action = ROOM_ACTIONS[eventDefinition.room];
       applyDemoSpecs();
     },
+    ready: (eventDefinition, spec) => {
+      spec.draft = false;
+      spec.why = eventDefinition.note;
+      applyDemoSpecs();
+    },
     exit: (eventDefinition, spec) => {
       currentDemoSpecs = currentDemoSpecs.filter((candidate) => candidate.key !== eventDefinition.key);
       applyDemoSpecs([{ key: spec.key, name: spec.name }]);

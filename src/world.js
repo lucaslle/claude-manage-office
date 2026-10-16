@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { GRID, ROOM_SIZE, DOOR_WIDTH, DOOR_ALONG, DOOR_ACROSS, roomCenters } from "./layout.js";
+import { COLUMNS, ROWS, GRID, ROOM_SIZE, DOOR_WIDTH, DOOR_ALONG, DOOR_ACROSS, roomAt, roomCenters, rowToZ } from "./layout.js";
 import { ROOM_LABELS } from "./data.js";
 import { createProps } from "./props.js";
+import { boxGeometry, makeFloorTexture, makeWallTexture } from "./textures.js";
+import { OFFICE_STYLE } from "./styles/index.js";
 
 const WALL_HEIGHT = 3.3;
 const SILL_HEIGHT = 0.8;
@@ -17,6 +19,8 @@ const EXIT_DOOR_OPEN_ANGLE = -1.9;
 const EXIT_DOOR_OPEN_SPEED = 7;
 const EXIT_DOOR_SLAM_SPEED = 16;
 const EXIT_DOOR_WOBBLE = 0.14;
+const LOW_WALL_HEIGHT = 0.22;
+const columnCenter = (column) => (column - 1) * ROOM_SIZE;
 
 // Sols de bureau tech : grès cérame clair, moquette en dalles, béton ciré. Le bois reste réservé à la zone Pause.
 const FLOORS = {
@@ -24,9 +28,9 @@ const FLOORS = {
   open: { color: "#cdd4de", kind: "carpet" },
   rev: { color: "#c8cde4", kind: "carpet" },
   mrg: { color: "#dde5df", kind: "tile" },
-  wait: { color: "#d8dbe2", kind: "carpet" },
-  draft: { color: "#e0e3e8", kind: "tile" },
+  pause: { color: "#d8bd92", kind: "wood" },
   fix: { color: "#cfcfd2", kind: "concrete" },
+  bug: { color: "#e6d3cd", kind: "carpet" },
   arch: { color: "#c6ccd6", kind: "carpet" },
   meet: { color: "#c2cde2", kind: "carpet" },
 };
@@ -36,97 +40,20 @@ const ACCENTS = {
   open: 0x3566f0,
   rev: 0x8f6bff,
   mrg: 0x2fbf71,
-  wait: 0xf0a020,
-  draft: 0x94a3b8,
+  pause: 0x14b8a6,
   fix: 0xe24b4a,
+  bug: 0xff7a3d,
   arch: 0x64748b,
   meet: 0x14b8a6,
 };
 
-const PAUSE_ZONE = { x: 3.4, z: -1.5, width: 3.0, depth: 6.8 };
-const ZONE_LABEL_OFFSETS = { arch: -1.1 };
 
-const shadeColor = (hex, amount) => {
-  const color = new THREE.Color(hex);
-  color.offsetHSL(0, 0, amount);
-  return `#${color.getHexString()}`;
+const wallTexture = (entry) => {
+  if (!entry) return null;
+  return typeof entry === "string" ? makeWallTexture(entry) : makeWallTexture(entry.texture, entry.color, entry.accent);
 };
 
-const makeFloorTexture = (baseColor, kind) => {
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext("2d");
-  context.fillStyle = baseColor;
-  context.fillRect(0, 0, size, size);
-  if (kind === "wood") {
-    const plankCount = 10;
-    const plankWidth = size / plankCount;
-    for (let plank = 0; plank < plankCount; plank += 1) {
-      context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.05);
-      context.fillRect(plank * plankWidth, 0, plankWidth, size);
-      context.fillStyle = "rgba(0,0,0,0.1)";
-      context.fillRect(plank * plankWidth, 0, 1.5, size);
-      const cut = Math.random() * size;
-      context.fillRect(plank * plankWidth, cut, plankWidth, 1.5);
-    }
-  } else if (kind === "carpet") {
-    const tiles = 6;
-    const tileSize = size / tiles;
-    for (let row = 0; row < tiles; row += 1) {
-      for (let column = 0; column < tiles; column += 1) {
-        context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.03);
-        context.fillRect(column * tileSize, row * tileSize, tileSize, tileSize);
-      }
-    }
-    for (let dot = 0; dot < 5000; dot += 1) {
-      context.fillStyle = `rgba(${Math.random() > 0.5 ? "255,255,255" : "0,0,0"},0.035)`;
-      context.fillRect(Math.random() * size, Math.random() * size, 2, 2);
-    }
-    context.fillStyle = "rgba(20,30,50,0.1)";
-    for (let line = 0; line < tiles; line += 1) {
-      context.fillRect(line * tileSize, 0, 1.2, size);
-      context.fillRect(0, line * tileSize, size, 1.2);
-    }
-  } else if (kind === "concrete") {
-    for (let patch = 0; patch < 260; patch += 1) {
-      context.fillStyle = `rgba(${Math.random() > 0.5 ? "255,255,255" : "0,0,0"},${0.02 + Math.random() * 0.03})`;
-      context.beginPath();
-      context.arc(Math.random() * size, Math.random() * size, 14 + Math.random() * 46, 0, Math.PI * 2);
-      context.fill();
-    }
-    context.fillStyle = "rgba(0,0,0,0.12)";
-    context.fillRect(size / 2 - 0.75, 0, 1.5, size);
-    context.fillRect(0, size / 2 - 0.75, size, 1.5);
-  } else {
-    const tiles = 3;
-    const tileSize = size / tiles;
-    for (let row = 0; row < tiles; row += 1) {
-      for (let column = 0; column < tiles; column += 1) {
-        const gradient = context.createLinearGradient(column * tileSize, row * tileSize, (column + 1) * tileSize, (row + 1) * tileSize);
-        gradient.addColorStop(0, shadeColor(baseColor, 0.012 + (Math.random() - 0.5) * 0.02));
-        gradient.addColorStop(1, shadeColor(baseColor, -0.012 + (Math.random() - 0.5) * 0.02));
-        context.fillStyle = gradient;
-        context.fillRect(column * tileSize, row * tileSize, tileSize, tileSize);
-      }
-    }
-    context.fillStyle = "rgba(30,40,60,0.16)";
-    for (let line = 0; line < tiles; line += 1) {
-      context.fillRect(line * tileSize - 1, 0, 2, size);
-      context.fillRect(0, line * tileSize - 1, size, 2);
-    }
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2, 2);
-  texture.anisotropy = 8;
-  return texture;
-};
-
-export const buildWorld = async (scene) => {
+export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   const world = new THREE.Group();
   scene.add(world);
   const roomGroups = {};
@@ -137,7 +64,7 @@ export const buildWorld = async (scene) => {
     new THREE.MeshStandardMaterial({ color, roughness: options.roughness ?? 0.8, metalness: options.metalness ?? 0.02, emissive: options.emissive ?? 0x000000, emissiveIntensity: options.emissiveIntensity ?? 1 });
 
   const addBox = (parent, width, height, depth, material, x, y, z) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    const mesh = new THREE.Mesh(boxGeometry(width, height, depth, material), material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -154,7 +81,8 @@ export const buildWorld = async (scene) => {
   };
 
   const addCylinder = (parent, radiusTop, radiusBottom, height, material, x, y, z) => {
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 20), material);
+    const side = radiusTop + radiusBottom;
+    const mesh = new THREE.Mesh(style.voxel ? boxGeometry(side, height, side, material) : new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 20), material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -162,7 +90,7 @@ export const buildWorld = async (scene) => {
     return mesh;
   };
 
-  const props = createProps({ animated });
+  const props = createProps({ animated, style });
 
   const plasterMaterial = standardMaterial(0xf5f6f8, { roughness: 0.95 });
   const frameMaterial = standardMaterial(0x7d8794, { roughness: 0.45, metalness: 0.5 });
@@ -189,18 +117,32 @@ export const buildWorld = async (scene) => {
     side: THREE.DoubleSide,
   });
 
-  const slabSize = ROOM_SIZE * 3 + 2.4;
+  plasterMaterial.map = wallTexture(style.walls?.plaster);
+  frameMaterial.map = wallTexture(style.walls?.frame);
+
+  const slabWidth = ROOM_SIZE * COLUMNS + 2.4;
+  const slabDepth = ROOM_SIZE * ROWS + 2.4;
+  const centerX = columnCenter((COLUMNS - 1) / 2);
+  const centerZ = rowToZ((ROWS - 1) / 2);
   const groundMaterial = standardMaterial(0xc2c9d3, { roughness: 0.9 });
   const plinthMaterial = standardMaterial(0x3a4049, { roughness: 0.7 });
+  groundMaterial.map = wallTexture(style.walls?.ground);
+  plinthMaterial.map = wallTexture(style.walls?.plinth);
   const floorMaterials = [];
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(slabSize, 0.6, slabSize), groundMaterial);
-  ground.position.y = -0.36;
+  const ground = new THREE.Mesh(boxGeometry(slabWidth, 0.6, slabDepth, groundMaterial), groundMaterial);
+  ground.position.set(centerX, -0.36, centerZ);
   ground.receiveShadow = true;
   world.add(ground);
-  const plinth = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE * 3 + 0.6, 0.08, ROOM_SIZE * 3 + 0.6), plinthMaterial);
-  plinth.position.y = PLINTH_Y;
-  plinth.receiveShadow = true;
-  world.add(plinth);
+  // Le soubassement ne suit que les cases qui ont une pièce : le reste du terrain est une terrasse.
+  GRID.forEach((rowRooms, row) =>
+    rowRooms.forEach((roomId, column) => {
+      if (!roomId) return;
+      const plinth = new THREE.Mesh(boxGeometry(ROOM_SIZE + 0.6, 0.08, ROOM_SIZE + 0.6, plinthMaterial), plinthMaterial);
+      plinth.position.set(columnCenter(column), PLINTH_Y, rowToZ(row));
+      plinth.receiveShadow = true;
+      world.add(plinth);
+    }),
+  );
 
   const addRoomLabel = (group, roomId, x) => {
     const labelElement = document.createElement("div");
@@ -212,21 +154,33 @@ export const buildWorld = async (scene) => {
     return labelElement;
   };
 
-  GRID.flat().forEach((roomId) => {
+  const rooms = GRID.flat().filter(Boolean);
+
+  const floorFor = (roomId) => {
+    const base = FLOORS[roomId];
+    const override = style.floors?.[roomId];
+    const woodKind = roomId === "pause" ? style.woodKind : undefined;
+    return { color: override?.color ?? base.color, kind: override?.kind ?? woodKind ?? style.floorKinds?.[base.kind] ?? base.kind };
+  };
+
+  rooms.forEach((roomId) => {
     const group = new THREE.Group();
     group.position.set(roomCenters[roomId].x, 0, roomCenters[roomId].z);
     world.add(group);
     roomGroups[roomId] = group;
-    const floorConfig = FLOORS[roomId];
-    const floorMaterial = new THREE.MeshStandardMaterial({ map: makeFloorTexture(floorConfig.color, floorConfig.kind), roughness: floorConfig.kind === "tile" ? 0.45 : 0.85, metalness: 0 });
+    const floorConfig = floorFor(roomId);
+    const floorMaterial = new THREE.MeshStandardMaterial({
+      map: makeFloorTexture(floorConfig.color, floorConfig.kind, "#" + ACCENTS[roomId].toString(16).padStart(6, "0")),
+      roughness: floorConfig.kind === "tile" || floorConfig.kind === "checker" ? 0.45 : 0.85,
+      metalness: 0,
+    });
     floorMaterials.push(floorMaterial);
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_SIZE, 0.12, ROOM_SIZE), floorMaterial);
+    const floor = new THREE.Mesh(boxGeometry(ROOM_SIZE, 0.12, ROOM_SIZE, floorMaterial), floorMaterial);
     floor.position.y = -0.06;
     floor.receiveShadow = true;
     group.add(floor);
-    labelElements[roomId] = addRoomLabel(group, roomId, ZONE_LABEL_OFFSETS[roomId] ?? 0);
+    labelElements[roomId] = addRoomLabel(group, roomId, 0);
   });
-  labelElements.pause = addRoomLabel(roomGroups.arch, "pause", PAUSE_ZONE.x);
 
   const wallSegment = (x1, z1, x2, z2, bottom, top, thickness, material, glass = false) => {
     const length = Math.abs(x2 - x1) + Math.abs(z2 - z1);
@@ -300,37 +254,59 @@ export const buildWorld = async (scene) => {
     return pivot;
   };
 
-  for (let lineIndex = 0; lineIndex < 4; lineIndex += 1) {
-    for (let cellIndex = 0; cellIndex < 3; cellIndex += 1) {
-      const start = edge(cellIndex);
-      const end = edge(cellIndex + 1);
-      const line = edge(lineIndex);
-      if (lineIndex === 0) {
-        if (cellIndex === 0) facadeWithDoor(line, start, end, exitDoorZ);
-        else facade(line, start, line, end);
-        facade(start, line, end, line);
-      } else if (lineIndex === 3) {
-        wallSegment(line, start, line, end, 0, 0.22, 0.2, frameMaterial);
-        wallSegment(start, line, end, line, 0, 0.22, 0.2, frameMaterial);
-      } else {
-        partition(line, start, line, end);
-        partition(start, line, end, line);
-      }
+  // Chaque côté de pièce est une façade (mur extérieur vitré, fond et gauche), une cloison vitrée (entre deux pièces)
+  // ou un muret (devant et à droite, pour que la caméra voie à l'intérieur). Une case vide ne dessine rien.
+  const horizontalKind = (column, line) => {
+    const above = roomAt(column, line - 1);
+    const below = roomAt(column, line);
+    if (!above && !below) return null;
+    if (above && below) return "partition";
+    return above ? "low" : "facade";
+  };
+  const verticalKind = (line, row) => {
+    const left = roomAt(line - 1, row);
+    const right = roomAt(line, row);
+    if (!left && !right) return null;
+    if (left && right) return "partition";
+    return left ? "low" : "facade";
+  };
+  const lowWall = (x1, z1, x2, z2) => wallSegment(x1, z1, x2, z2, 0, LOW_WALL_HEIGHT, 0.2, frameMaterial);
+  const drawSegment = { facade, partition, low: lowWall };
+
+  for (let line = 0; line <= ROWS; line += 1) {
+    for (let column = 0; column < COLUMNS; column += 1) {
+      const kind = horizontalKind(column, line);
+      if (kind) drawSegment[kind](edge(column), edge(line), edge(column + 1), edge(line));
     }
   }
-  // Les murs sont centrés sur leur axe : sans ces plots, chaque angle extérieur garde une encoche d'une demi-épaisseur.
-  addBox(world, 0.3, WALL_HEIGHT, 0.3, plasterMaterial, edge(0), WALL_HEIGHT / 2, edge(0));
-  addBox(world, 0.3, WALL_HEIGHT, 0.3, plasterMaterial, edge(3), WALL_HEIGHT / 2, edge(0));
-  addBox(world, 0.3, WALL_HEIGHT, 0.3, plasterMaterial, edge(0), WALL_HEIGHT / 2, edge(3));
-  addBox(world, 0.2, 0.22, 0.2, frameMaterial, edge(3), 0.11, edge(3));
-
-  for (let lineIndex = 0; lineIndex < 4; lineIndex += 1) {
-    for (let cellIndex = 0; cellIndex < 4; cellIndex += 1) {
-      const isFront = lineIndex === 3 || cellIndex === 3;
-      post(edge(cellIndex), edge(lineIndex), isFront ? 0.22 : lineIndex === 0 || cellIndex === 0 ? WALL_HEIGHT : PARTITION_HEIGHT);
+  for (let line = 0; line <= COLUMNS; line += 1) {
+    for (let row = 0; row < ROWS; row += 1) {
+      const kind = verticalKind(line, row);
+      if (!kind) continue;
+      if (kind === "facade" && line === 0 && row === 0) facadeWithDoor(edge(line), edge(row), edge(row + 1), exitDoorZ);
+      else drawSegment[kind](edge(line), edge(row), edge(line), edge(row + 1));
     }
   }
 
+  // Les murs sont centrés sur leur axe : sans plots, chaque bout de façade garde une encoche d'une demi-épaisseur.
+  // Chaque angle reçoit aussi un poteau, aussi haut que le plus haut mur qui s'y rejoint.
+  for (let line = 0; line <= COLUMNS; line += 1) {
+    for (let row = 0; row <= ROWS; row += 1) {
+      const incident = [
+        { axis: "x", kind: horizontalKind(line - 1, row) },
+        { axis: "x", kind: horizontalKind(line, row) },
+        { axis: "z", kind: verticalKind(line, row - 1) },
+        { axis: "z", kind: verticalKind(line, row) },
+      ].filter((side) => side.kind);
+      if (incident.length === 0) continue;
+      const kinds = incident.map((side) => side.kind);
+      const facades = incident.filter((side) => side.kind === "facade");
+      if (facades.length === 1 || (facades.length === 2 && facades[0].axis !== facades[1].axis)) addBox(world, 0.3, WALL_HEIGHT, 0.3, plasterMaterial, edge(line), WALL_HEIGHT / 2, edge(row));
+      else if (kinds.every((kind) => kind === "low")) addBox(world, 0.2, LOW_WALL_HEIGHT, 0.2, frameMaterial, edge(line), LOW_WALL_HEIGHT / 2, edge(row));
+      const height = kinds.includes("low") ? LOW_WALL_HEIGHT : kinds.includes("facade") ? WALL_HEIGHT : PARTITION_HEIGHT;
+      post(edge(line), edge(row), height);
+    }
+  }
 
   const addWallScreen = (roomId, x, width, height, faceColor, emissive) => {
     const screenY = 1.7;
@@ -347,7 +323,7 @@ export const buildWorld = async (scene) => {
   const backWall = -ROOM_SIZE / 2 + 0.2;
 
   // Liseré LED au pied du mur du fond de chaque pièce, dans la couleur de la pièce.
-  GRID.flat().forEach((roomId) => props.wallLedge(room(roomId), { x: 0, z: -ROOM_SIZE / 2 + 0.14, width: ROOM_SIZE - 0.8, color: ACCENTS[roomId], intensity: 0.85 }));
+  rooms.forEach((roomId) => props.wallLedge(room(roomId), { x: 0, z: -ROOM_SIZE / 2 + 0.14, width: ROOM_SIZE - 0.8, color: ACCENTS[roomId], intensity: style.ledgeIntensity ?? 0.85 }));
 
   props.counter(room("acc"), { x: -0.3, z: -3.9, width: 3.4, depth: 0.8, top: M.white, light: 0xff6b6b });
   addBox(room("acc"), 0.8, 0.46, 0.03, M.black, -0.3, 1.38, -4.05);
@@ -372,6 +348,22 @@ export const buildWorld = async (scene) => {
   props.plant(room("open"), { x: 4.3, z: 4.3, height: 1.6 });
   props.plant(room("open"), { x: -4.4, z: 4.3, kind: "snake" });
 
+  // Salle des bugs : un open space à part pour les discussions qui corrigent un bug, écrans rouges, tickets au mur et piège à insectes.
+  [-3.4, -0.2].forEach((deskZ) => {
+    [-0.9, 2.4].forEach((deskX) => {
+      props.desk(room("bug"), { x: deskX, z: deskZ, screenMaterial: M.screenRed });
+      props.chair(room("bug"), { x: deskX, z: deskZ + 1.2, ry: Math.PI });
+    });
+  });
+  props.lockers(room("bug"), { x: -4.6, z: -1.7, ry: Math.PI / 2, count: 4 });
+  props.glassBoard(room("bug"), { x: 0.8, z: backWall, width: 2.8, height: 1.2 });
+  addWallScreen("bug", -3.3, 1.7, 1.1, 0xffc4b0, 0xc4401a);
+  props.signPanel(room("bug"), { x: 0.8, y: 2.8, z: backWall, width: 2.4, height: 0.7, text: "BUGS", accentColor: "#ff7a3d" });
+  props.bugStatue(room("bug"), { x: 4.3, z: 1.0, ry: -0.9 });
+  props.bugZapper(room("bug"), { x: 4.4, z: -4.3 });
+  props.plant(room("bug"), { x: 4.3, z: 4.3, height: 1.6 });
+  props.plant(room("bug"), { x: -4.4, z: 4.3, kind: "snake" });
+
   props.rug(room("rev"), { x: 0.8, z: -0.4, width: 4.6, depth: 3, color: M.slate });
   props.meetingTable(room("rev"), { x: 0.8, z: -0.4, width: 3.2, depth: 1.4 });
   [-0.1, 1.7].forEach((seatX) => {
@@ -392,29 +384,6 @@ export const buildWorld = async (scene) => {
   props.plant(room("mrg"), { x: 4.3, z: 4.3, height: 1.6 });
   props.plant(room("mrg"), { x: -4.4, z: 4.3, kind: "snake" });
 
-  props.bench(room("wait"), { x: 0, z: -3.9, length: 3.2 });
-  props.roundTable(room("wait"), { x: 4.2, z: 1.2, radius: 0.4, top: M.oak });
-  props.plant(room("wait"), { x: 4.4, z: -4.3, height: 1.6 });
-  props.plant(room("wait"), { x: -4.4, z: -4.3, kind: "snake" });
-  props.signPanel(room("wait"), { x: 0, y: 2.7, z: backWall, width: 2.4, height: 0.7, text: "ATTENTE", accentColor: "#f0a020" });
-  const ropeMaterial = standardMaterial(0x2e343d, { roughness: 0.6 });
-  [-1.0, 1.0].forEach((offset) => {
-    [-3.0, -1.4, 0.2, 1.8].forEach((posZ) => {
-      addCylinder(roomGroups.wait, 0.04, 0.07, 0.75, metalMaterial, offset, 0.375, posZ);
-      addCylinder(roomGroups.wait, 0.07, 0.07, 0.04, metalMaterial, offset, 0.77, posZ);
-    });
-    [-3.0, -1.4, 0.2].forEach((posZ) => addBox(roomGroups.wait, 0.03, 0.04, 1.5, ropeMaterial, offset, 0.68, posZ + 0.8));
-  });
-  addBox(roomGroups.wait, 0.55, 1.15, 0.4, standardMaterial(0x3a4a63), 3.8, 0.575, -1.6);
-  addBox(roomGroups.wait, 0.4, 0.28, 0.03, new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xb58a12, emissiveIntensity: 0.9 }), 3.8, 0.88, -1.39);
-
-  [-1.6, 0.8, 3.2].forEach((deskX) => props.desk(room("draft"), { x: deskX, z: -2.9, width: 2.0, depth: 0.9, monitors: 1, standing: true }));
-  props.lockers(room("draft"), { x: -4.6, z: 0.0, ry: Math.PI / 2, count: 5 });
-  props.glassBoard(room("draft"), { x: 0.8, z: backWall, width: 3.2, height: 1.3 });
-  addBox(roomGroups.draft, 0.08, 1.3, 2.6, standardMaterial(0xf8f9fb, { roughness: 0.35 }), 4.5, 1.2, 0.2);
-  addBox(roomGroups.draft, 0.1, 1.4, 2.7, frameMaterial, 4.56, 1.2, 0.2);
-  props.plant(room("draft"), { x: -4.4, z: 4.3, height: 1.6 });
-
   props.workbench(room("fix"), { x: 0.4, z: -3.9, width: 5.2 });
   props.lockers(room("fix"), { x: 4.1, z: -4.0, count: 2 });
   addBox(roomGroups.fix, 0.6, 0.3, 0.3, standardMaterial(0xd04a3a, { roughness: 0.5 }), 3.2, 0.15, 0.6);
@@ -427,32 +396,38 @@ export const buildWorld = async (scene) => {
   });
   props.plant(room("fix"), { x: 4.3, z: 4.3, kind: "snake" });
 
-  // Archives à gauche (baies de serveurs, poufs de sieste), zone Pause à droite, séparées par une paroi vitrée.
-  [-1.7, -0.8, 0.1, 1.0].forEach((rackX) => props.serverRack(room("arch"), { x: rackX, z: -4.35 }));
+  // Archives : baies de serveurs au fond, poufs de sieste au milieu, casiers à gauche.
+  [-1.7, -0.6, 0.5, 1.6, 2.7, 3.8].forEach((rackX) => props.serverRack(room("arch"), { x: rackX, z: -4.35 }));
   [
     [-1.4, -1.9, M.slate],
     [0.5, -1.9, M.navy],
     [-1.4, 0.1, M.navy],
     [0.5, 0.1, M.slate],
     [-0.5, 1.5, M.fog],
+    [2.6, -1.9, M.fog],
+    [2.6, 0.1, M.navy],
+    [3.9, -0.9, M.slate],
   ].forEach(([bagX, bagZ, color]) => props.beanBag(room("arch"), { x: bagX, z: bagZ, color }));
   props.lockers(room("arch"), { x: -4.6, z: -1.0, ry: Math.PI / 2, count: 5 });
-  props.box(room("arch"), 0.04, 1.6, 6.0, M.glass, 1.7, 0.8, -2.0, { shadow: false }).renderOrder = 2;
-  props.box(room("arch"), 0.07, 0.07, 6.0, M.graphite, 1.7, 1.62, -2.0, { shadow: false });
-  [-5.0 + 0.03, 1.0].forEach((postZ) => props.box(room("arch"), 0.07, 1.65, 0.07, M.graphite, 1.7, 0.825, postZ, { shadow: false }));
+  props.plant(room("arch"), { x: 4.4, z: 4.3, height: 1.6 });
+  props.plant(room("arch"), { x: -4.4, z: 4.3, kind: "snake" });
 
-  const woodMaterial = new THREE.MeshStandardMaterial({ map: makeFloorTexture("#d8bd92", "wood"), roughness: 0.7, metalness: 0 });
-  floorMaterials.push(woodMaterial);
-  const pauseFloor = props.box(room("arch"), PAUSE_ZONE.width, 0.02, PAUSE_ZONE.depth, woodMaterial, PAUSE_ZONE.x, 0.01, PAUSE_ZONE.z, { shadow: false });
-  pauseFloor.castShadow = false;
-  props.sofa(room("arch"), { x: 4.4, z: -1.7, ry: -Math.PI / 2, length: 2.4, tone: M.door[1] });
-  props.roundTable(room("arch"), { x: 3.0, z: -1.7, radius: 0.5, top: M.oak });
-  props.pouf(room("arch"), { x: 2.3, z: -0.4, color: M.door[2] });
-  props.pouf(room("arch"), { x: 2.2, z: -2.2, color: M.door[0] });
-  props.coffeeBar(room("arch"), { x: 2.9, z: -4.4, width: 2.3 });
-  props.signPanel(room("arch"), { x: 3.4, y: 2.9, z: backWall, width: 1.8, height: 0.6, text: "PAUSE", accentColor: "#14b8a6" });
-  props.plant(room("arch"), { x: 4.4, z: 1.2, height: 1.6 });
-  props.plant(room("arch"), { x: 2.0, z: 1.3, kind: "snake" });
+  // Pause : un vrai salon sur parquet, deux coins canapé face à face et le bar à café au fond.
+  props.rug(room("pause"), { x: 1.4, z: -1.7, width: 6.8, depth: 4.2, color: M.fog });
+  props.sofa(room("pause"), { x: -1.5, z: -1.7, ry: Math.PI / 2, length: 2.4, tone: M.door[0] });
+  props.roundTable(room("pause"), { x: -0.2, z: -1.7, radius: 0.5, top: M.oak });
+  props.sofa(room("pause"), { x: 4.4, z: -1.7, ry: -Math.PI / 2, length: 2.4, tone: M.door[1] });
+  props.roundTable(room("pause"), { x: 3.0, z: -1.7, radius: 0.5, top: M.oak });
+  props.pouf(room("pause"), { x: 2.3, z: -0.4, color: M.door[2] });
+  props.pouf(room("pause"), { x: 2.2, z: -2.2, color: M.door[0] });
+  props.pouf(room("pause"), { x: -0.2, z: -0.3, color: M.door[3] });
+  props.bench(room("pause"), { x: -0.4, z: -4.15, length: 2.4 });
+  props.coffeeBar(room("pause"), { x: 2.9, z: -4.4, width: 2.3 });
+  props.signPanel(room("pause"), { x: 2.9, y: 2.9, z: backWall, width: 1.8, height: 0.6, text: "PAUSE", accentColor: "#14b8a6" });
+  props.plant(room("pause"), { x: 4.4, z: 4.3, height: 1.6 });
+  props.plant(room("pause"), { x: 2.0, z: 1.3, kind: "snake" });
+  props.plant(room("pause"), { x: -4.4, z: -4.3, height: 1.7 });
+  props.plant(room("pause"), { x: -4.4, z: 4.3, kind: "snake" });
 
   props.rug(room("meet"), { x: 0.6, z: -0.4, width: 5, depth: 3.4, color: M.slate });
   props.meetingTable(room("meet"), { x: 0.6, z: -0.4, width: 3.2, depth: 1.5 });
@@ -466,6 +441,8 @@ export const buildWorld = async (scene) => {
   props.plant(room("meet"), { x: 4.3, z: 4.3, height: 1.6 });
   props.plant(room("meet"), { x: -4.4, z: 4.3, kind: "snake" });
   props.plant(room("meet"), { x: 4.3, z: -4.3, height: 1.7 });
+
+  style.decor?.({ THREE, world, room, rooms, props, M, addBox, addCylinder, animated, roomGroups, ROOM_SIZE, backWall, ACCENTS, edge, standardMaterial, scene, centerX, centerZ, slabWidth, slabDepth });
 
   const door = { pivot: buildExitDoor(exitDoorX, exitDoorZ), angle: 0, target: 0, slamming: false, wobble: 0, onSlam: null };
   animated.push((elapsed, delta) => {
@@ -513,11 +490,15 @@ export const buildWorld = async (scene) => {
   const applyPalette = (palette) => {
     plasterMaterial.color.set(palette.plaster);
     frameMaterial.color.set(palette.frame);
+    if (style.walls?.frameGlow) {
+      frameMaterial.emissive.set(style.walls.frameGlow);
+      frameMaterial.emissiveIntensity = style.walls.frameGlowIntensity ?? 1;
+    }
     groundMaterial.color.set(palette.ground);
     plinthMaterial.color.set(palette.plinth);
     glazingMaterial.emissive.set(palette.glazing);
     floorMaterials.forEach((material) => material.color.set(palette.floorTint));
   };
 
-  return { world, roomGroups, update, setRoomOverflow, applyPalette, gateBeam, exitDoor };
+  return { world, roomGroups, update, setRoomOverflow, applyPalette, gateBeam, exitDoor, style };
 };

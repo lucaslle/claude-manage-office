@@ -4,7 +4,7 @@ const CHIPS = [
   { label: "À répondre", color: "var(--color-bad)", matches: (spec) => spec.room === "acc" && !spec.agent },
   { label: "À relire", color: "var(--color-accent)", matches: (spec) => spec.room === "rev" },
   { label: "Prêtes à merger", color: "var(--color-ok)", matches: (spec) => spec.room === "mrg" },
-  { label: "Bloquées", color: "var(--color-warn)", matches: (spec) => spec.room === "wait" || spec.room === "fix" },
+  { label: "Bloquées", color: "var(--color-warn)", matches: (spec) => spec.room === "fix" },
   { label: "Agents en réunion", color: "var(--color-ghost)", matches: (spec) => spec.room === "meet" && spec.agent === true },
 ];
 

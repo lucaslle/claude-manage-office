@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { boxGeometry, grainTexture, pixelTexture } from "./textures.js";
 
 // Mobilier « entreprise tech » construit en primitives : verre, graphite, blanc, bois clair et LED.
 // Repère de chaque objet : x vers la droite, z vers l'avant ; l'objet regarde vers +z, ry le fait pivoter.
@@ -25,30 +26,52 @@ const seededRandom = (seed) => {
 
 const SCREEN_LINES = [0x6fe3a1, 0x8ec5ff, 0xffd37a, 0xc7a6ff];
 
-export const createProps = ({ animated }) => {
-  const M = {
-    white: material(0xf4f6f9, { roughness: 0.35 }),
-    offWhite: material(0xe6e9ee, { roughness: 0.5 }),
-    graphite: material(0x2b3039, { roughness: 0.5 }),
-    black: material(0x14171c, { roughness: 0.4 }),
-    steel: material(0xaab3bf, { roughness: 0.3, metalness: 0.75 }),
-    oak: material(0xd8bd92, { roughness: 0.7 }),
-    navy: material(0x33466b, { roughness: 0.85 }),
-    slate: material(0x56627a, { roughness: 0.85 }),
-    fog: material(0xb4bdcb, { roughness: 0.9 }),
-    pot: material(0xf2f3f5, { roughness: 0.5 }),
-    soil: material(0x2d2a26, { roughness: 1 }),
-    leaf: material(0x3c9d5b, { roughness: 0.8 }),
-    leafDark: material(0x2a7a47, { roughness: 0.8 }),
-    glass: material(0xd6ebf5, { roughness: 0.08, opacity: 0.28 }),
-    screen: material(0x16202e, { emissive: 0x2c4d7a, emissiveIntensity: 0.85, roughness: 0.25 }),
-    screenRed: material(0x2a1215, { emissive: 0xc42b2b, emissiveIntensity: 0.9, roughness: 0.25 }),
-    screenWhite: material(0xeaf4ff, { emissive: 0x9ed0ff, emissiveIntensity: 0.55, roughness: 0.3 }),
-    warm: material(0xfff0cf, { emissive: 0xffc46b, emissiveIntensity: 0.9 }),
-    note: [0xffd95a, 0xff8fa3, 0x7fd6ff, 0xa6e88f].map((color) => material(color, { roughness: 0.9 })),
-    door: [0x3566f0, 0x14b8a6, 0xf0a020, 0x8f6bff].map((color) => material(color, { roughness: 0.55 })),
-  };
-  const led = [0x2fe38a, 0x2fd0ff, 0xffb02f].map((color) => material(0x0a0d10, { emissive: color, emissiveIntensity: 1 }));
+const BASE_MATERIALS = {
+  white: [0xf4f6f9, { roughness: 0.35 }],
+  offWhite: [0xe6e9ee, { roughness: 0.5 }],
+  graphite: [0x2b3039, { roughness: 0.5 }],
+  black: [0x14171c, { roughness: 0.4 }],
+  steel: [0xaab3bf, { roughness: 0.3, metalness: 0.75 }],
+  oak: [0xd8bd92, { roughness: 0.7 }],
+  navy: [0x33466b, { roughness: 0.85 }],
+  slate: [0x56627a, { roughness: 0.85 }],
+  fog: [0xb4bdcb, { roughness: 0.9 }],
+  pot: [0xf2f3f5, { roughness: 0.5 }],
+  soil: [0x2d2a26, { roughness: 1 }],
+  leaf: [0x3c9d5b, { roughness: 0.8 }],
+  leafDark: [0x2a7a47, { roughness: 0.8 }],
+  glass: [0xd6ebf5, { roughness: 0.08, opacity: 0.28 }],
+  screen: [0x16202e, { emissive: 0x2c4d7a, emissiveIntensity: 0.85, roughness: 0.25 }],
+  screenRed: [0x2a1215, { emissive: 0xc42b2b, emissiveIntensity: 0.9, roughness: 0.25 }],
+  screenWhite: [0xeaf4ff, { emissive: 0x9ed0ff, emissiveIntensity: 0.55, roughness: 0.3 }],
+  warm: [0xfff0cf, { emissive: 0xffc46b, emissiveIntensity: 0.9 }],
+};
+
+// Les matériaux qui reçoivent un grain de pixels quand le style en demande (ni verre, ni écran, ni lumière).
+const GRAIN_KEYS = ["white", "offWhite", "graphite", "black", "steel", "oak", "navy", "slate", "fog", "pot", "soil", "leaf", "leafDark"];
+
+const DEFAULT_NOTES = [0xffd95a, 0xff8fa3, 0x7fd6ff, 0xa6e88f];
+const DEFAULT_DOORS = [0x3566f0, 0x14b8a6, 0xf0a020, 0x8f6bff];
+const DEFAULT_LED = [0x2fe38a, 0x2fd0ff, 0xffb02f];
+
+// Un style peut recolorer un matériau (materials), lui poser une texture (surface) ou lui donner du grain (grain).
+const buildMaterial = (key, [color, options], style) => {
+  const override = style?.materials?.[key];
+  const spec = override === undefined ? {} : typeof override === "object" ? override : { color: override };
+  const textureName = style?.surface?.[key];
+  const tint = spec.color ?? (textureName ? 0xffffff : color);
+  const result = material(tint, { ...options, ...spec });
+  if (textureName) result.map = pixelTexture(textureName);
+  else if (style?.grain && GRAIN_KEYS.includes(key)) result.map = grainTexture(style.grain);
+  return result;
+};
+
+export const createProps = ({ animated, style = null }) => {
+  const voxel = style?.voxel === true;
+  const M = Object.fromEntries(Object.entries(BASE_MATERIALS).map(([key, entry]) => [key, buildMaterial(key, entry, style)]));
+  M.note = (style?.noteColors ?? DEFAULT_NOTES).map((color) => material(color, { roughness: 0.9 }));
+  M.door = (style?.doorColors ?? DEFAULT_DOORS).map((color) => material(color, { roughness: 0.55 }));
+  const led = (style?.ledColors ?? DEFAULT_LED).map((color) => material(0x0a0d10, { emissive: color, emissiveIntensity: 1 }));
   const accentMaterials = new Map();
   const accent = (color, intensity = 0.9) => {
     const key = `${color}:${intensity}`;
@@ -62,7 +85,7 @@ export const createProps = ({ animated }) => {
   });
 
   const box = (parent, width, height, depth, mat, x, y, z, options = {}) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), mat);
+    const mesh = new THREE.Mesh(boxGeometry(width, height, depth, mat), mat);
     mesh.position.set(x, y, z);
     if (options.ry) mesh.rotation.y = options.ry;
     mesh.castShadow = options.shadow !== false;
@@ -72,7 +95,8 @@ export const createProps = ({ animated }) => {
   };
 
   const cylinder = (parent, radiusTop, radiusBottom, height, mat, x, y, z, segments = 20) => {
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), mat);
+    const side = radiusTop + radiusBottom;
+    const mesh = new THREE.Mesh(voxel ? boxGeometry(side, height, side, mat) : new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), mat);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -81,7 +105,7 @@ export const createProps = ({ animated }) => {
   };
 
   const sphere = (parent, radius, mat, x, y, z, scale = [1, 1, 1]) => {
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 10), mat);
+    const mesh = new THREE.Mesh(voxel ? boxGeometry(radius * 1.7, radius * 1.7, radius * 1.7, mat) : new THREE.SphereGeometry(radius, 14, 10), mat);
     mesh.position.set(x, y, z);
     mesh.scale.set(...scale);
     mesh.castShadow = true;
@@ -310,24 +334,30 @@ export const createProps = ({ animated }) => {
     return group;
   };
 
-  const signPanel = (parent, { x, y, z, width, height, text, background = "#10151d", color = "#ffffff", accentColor = "#3566f0" }) => {
+  const signStyle = style?.sign ?? {};
+  const signPanel = (parent, { x, y, z, width, height, text, background = signStyle.background ?? "#10151d", color = signStyle.color ?? "#ffffff", accentColor = "#3566f0" }) => {
+    const barColor = signStyle.accent ?? accentColor;
     const canvas = document.createElement("canvas");
     canvas.width = 1024;
     canvas.height = Math.round(1024 * (height / width));
     const context = canvas.getContext("2d");
     context.fillStyle = background;
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = accentColor;
+    context.fillStyle = barColor;
     context.fillRect(0, canvas.height - 14, canvas.width, 14);
     context.fillStyle = color;
-    context.font = `700 ${Math.round(canvas.height * 0.4)}px "Inter", "Segoe UI", system-ui, sans-serif`;
+    context.font = `${signStyle.weight ?? 700} ${Math.round(canvas.height * (signStyle.scale ?? 0.4))}px ${signStyle.font ?? '"Inter", "Segoe UI", system-ui, sans-serif'}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
+    if (signStyle.glow) {
+      context.shadowColor = signStyle.glow;
+      context.shadowBlur = 28;
+    }
     context.fillText(text, canvas.width / 2, canvas.height / 2 - 4);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
-    const face = new THREE.MeshStandardMaterial({ map: texture, emissiveMap: texture, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.4 });
+    const face = new THREE.MeshStandardMaterial({ map: texture, emissiveMap: texture, emissive: 0xffffff, emissiveIntensity: signStyle.emissive ?? 0.55, roughness: 0.4 });
     const group = placed(parent, x, z);
     box(group, width + 0.08, height + 0.08, 0.05, M.graphite, 0, y, 0, { shadow: false });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), face);
@@ -343,5 +373,43 @@ export const createProps = ({ animated }) => {
     return group;
   };
 
-  return { desk, chair, stool, sofa, roundTable, pouf, beanBag, plant, serverRack, counter, coffeeBar, glassBoard, wallLedge, lockers, bench, workbench, meetingTable, rug, signPanel, partitionScreen, box, cylinder, materials: M, accent };
+  // Coccinelle géante sur un socle : la mascotte de la salle des bugs.
+  const bugStatue = (parent, { x, z, ry = 0, scale = 1 }) => {
+    const group = placed(parent, x, z, ry);
+    group.scale.setScalar(scale);
+    const shell = material(0xd8321f, { roughness: 0.3 });
+    box(group, 1.2, 0.1, 1.2, M.graphite, 0, 0.05, 0);
+    box(group, 0.9, 0.46, 0.9, M.white, 0, 0.33, 0);
+    sphere(group, 0.5, shell, 0, 0.86, -0.05, [1, 0.62, 1.15]);
+    box(group, 0.035, 0.03, 1.0, M.black, 0, 1.17, -0.05, { shadow: false });
+    [[-0.26, 0.98, -0.3], [0.26, 0.98, -0.3], [-0.3, 0.96, 0.1], [0.3, 0.96, 0.1], [0, 1.1, 0.32]].forEach(([spotX, spotY, spotZ]) => sphere(group, 0.09, M.black, spotX, spotY, spotZ, [1, 0.5, 1]));
+    sphere(group, 0.23, M.black, 0, 0.84, 0.58, [1, 0.85, 0.9]);
+    [-0.1, 0.1].forEach((eyeX) => sphere(group, 0.05, M.white, eyeX, 0.92, 0.77));
+    [-0.1, 0.1].forEach((side) => {
+      const antenna = cylinder(group, 0.012, 0.012, 0.34, M.black, side * 1.2, 1.12, 0.74, 6);
+      antenna.rotation.set(0.5, 0, side * -0.6);
+    });
+    [-1, 1].forEach((side) => [-0.28, 0.0, 0.28].forEach((legZ) => box(group, 0.36, 0.04, 0.04, M.black, side * 0.6, 0.62, legZ - 0.05, { shadow: false, ry: side * legZ * 0.8 })));
+    return group;
+  };
+
+  // Piège à insectes : tube violet qui grésille dans sa cage.
+  const bugZapper = (parent, { x, z, ry = 0 }) => {
+    const group = placed(parent, x, z, ry);
+    const glow = material(0x1a0f2e, { emissive: 0xb06aff, emissiveIntensity: 1.2, roughness: 0.3 });
+    box(group, 0.56, 0.1, 0.56, M.graphite, 0, 0.05, 0);
+    box(group, 0.56, 0.08, 0.56, M.graphite, 0, 1.46, 0);
+    cylinder(group, 0.09, 0.09, 1.3, glow, 0, 0.75, 0, 12);
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sideX, sideZ]) => box(group, 0.03, 1.35, 0.03, M.steel, sideX * 0.24, 0.75, sideZ * 0.24, { shadow: false }));
+    [0.35, 0.75, 1.15].forEach((barY) => box(group, 0.5, 0.012, 0.5, M.steel, 0, barY, 0, { shadow: false }));
+    animated.push((elapsed) => {
+      glow.emissiveIntensity = 0.7 + 0.5 * Math.abs(Math.sin(elapsed * 17) * Math.sin(elapsed * 4.3));
+    });
+    return group;
+  };
+
+  const api = { bugStatue, bugZapper, desk, chair, stool, sofa, roundTable, pouf, beanBag, plant, serverRack, counter, coffeeBar, glassBoard, wallLedge, lockers, bench, workbench, meetingTable, rug, signPanel, partitionScreen, box, cylinder, sphere, placed, materials: M, accent, led };
+  // Un style remplace des meubles (les plantes en créatures, les casiers en coffres…) ou en ajoute ; base garde les originaux.
+  const overrides = style?.props?.({ ...api, base: { ...api }, animated, seededRandom, THREE, screenPanel });
+  return Object.assign(api, overrides);
 };

@@ -12,14 +12,15 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 | --- | --- |
 | Accueil | Une session Claude attend votre réponse (question en fin de message ou demande de permission). Le personnage fait signe, avec une bulle « ! » |
 | Open space | Claude travaille |
-| Relecture | MR ouverte, en attente de relecture ou d'approbation, et conversation où vous faites une review (voir ci-dessous) |
+| Salle des bugs | Claude travaille sur un correctif : même chose que l'open space, mais pour les discussions qui corrigent un bug (voir ci-dessous). Elle occupe la place de l'ancienne salle des brouillons, devant l'atelier. Il n'y a plus de salle des brouillons ni d'attente |
+| Relecture | MR ouverte, en attente de relecture ou d'approbation, MR marquée Draft ou qui dépend d'une autre MR encore ouverte (la raison est indiquée sur sa fiche), et conversation où vous faites une review (voir ci-dessous) |
 | Merge | MR mergeable, sans blocage |
-| Attente | MR qui dépend d'une autre MR encore ouverte |
-| Brouillons | MR marquée Draft |
 | Atelier | Pipeline en échec, conflit ou rebase nécessaire |
-| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : coin salon avec bar à café (4 places, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`) |
-| Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause. La zone Pause et les archives partagent la même salle, séparées par une paroi vitrée |
+| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : salle à part, sur parquet, avec deux coins canapé et un bar à café (6 places, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`). Elle est devant la salle de merge, à droite |
+| Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause |
 | Salle de réunion | Une session a lancé plusieurs agents : elle s'y installe avec eux |
+
+Une discussion est un fix de bug quand son titre ou le nom de sa branche parle de bug, fix, hotfix, correctif, « corriger », erreur, crash, régression, anomalie ou plantage (sans tenir compte des accents ni de la casse ; `fix/login` et `bugfix_PRJ-12` comptent). Tant que Claude travaille dessus, elle va dans la salle des bugs au lieu de l'open space, avec son agent s'il n'en a qu'un. Les autres règles restent prioritaires : une question va à l'accueil, plusieurs agents en salle de réunion, une MR liée dans la pièce de la MR, une discussion terminée en Pause puis aux archives.
 
 Quand une session lance des agents, chacun apparaît comme un petit robot. À partir de deux agents actifs, la session et ses agents se retrouvent en salle de réunion ; avec un seul agent, ils restent à l'open space. Tant qu'un agent travaille, la session ne retourne jamais aux archives, même si son tour de parole est terminé. Elle ne rejoint les archives (ou sa MR) qu'une fois tous ses agents terminés. Si elle attend une réponse de votre part, elle va à l'accueil, et ses agents restent en réunion.
 
@@ -50,7 +51,7 @@ npm install
 npm run dev
 ```
 
-Cela ouvre le **mode démo** sur http://localhost:5173 : des données d'exemple et huit changements d'état à déclencher ou à regarder défiler.
+Cela ouvre le **mode démo** sur http://localhost:5173 : des données d'exemple et une douzaine de changements d'état à déclencher ou à regarder défiler.
 
 ## Données en direct
 
@@ -78,7 +79,7 @@ La carte « Score » en haut de la colonne de droite transforme votre réactivit
 | … en moins de cinq minutes : réponse éclair | 25 |
 | Une MR sort de l'atelier (pipeline réparé, conflit résolu) | 20 |
 | Une MR passe de la relecture à la salle de merge | 15 |
-| Un brouillon devient prêt à relire | 5 |
+| Un brouillon devient prêt à relire (la MR n'est plus marquée Draft) | 5 |
 | Une MR est mergée | 40 |
 | Plus personne n'attend à l'accueil | 30 |
 
@@ -120,7 +121,7 @@ La colonne de droite affiche vos limites Claude (session de 5 heures, semaine to
 
 ### Thèmes d'entreprise
 
-Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs de toute l'application : interface, murs, sols et éclairage de la scène 3D. Le choix est mémorisé dans le navigateur.
+Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs de toute l'application : interface, murs, sols et éclairage de la scène 3D. Certains thèmes changent aussi l'univers de la scène (textures, mobilier, décor) : le bâtiment est alors reconstruit et les robots changent d'apparence sur place, sans bouger de pièce : équipiers dans Among Us, Steve dans Minecraft, minifigs dans Lego, robots cuisiniers avec toque dans Chef, robots chromés à néons dans Cyberpunk (les silhouettes de MR restent les mêmes). Le choix est mémorisé dans le navigateur.
 
 | Thème | Style |
 | --- | --- |
@@ -129,8 +130,13 @@ Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs 
 | Marine et or | Toujours sombre, accent doré, cadres dorés |
 | Terracotta | Orange chaud, clair ou sombre |
 | Vert forêt | Vert, clair ou sombre |
+| Minecraft | Univers : tout est cube et texturé en pixels (planches, pierre, herbe, émeraude, netherrack), casiers en coffres, canapés en lits, plantes en pousses et cactus, torches, creepers et TNT dans la salle des bugs, moutons et portail du Nether dans la cour. Clair ou sombre |
+| Among Us | Univers : vaisseau spatial, plaques de coque, bandes de danger, bouches d'aération, équipiers à la place des plantes, bouton d'urgence sur la table de réunion, étoiles et planète. Toujours sombre |
+| Chef | Univers : cuisine de restaurant, carrelage blanc, damiers et carreaux de terre cuite, inox, frigos, piano de cuisson et four à pizza, citronniers et aromates, potager et parasol dans la cour. Clair ou sombre |
+| Cyberpunk | Univers : tour de bureaux de nuit, murs sombres cernés de néon, sols quadrillés lumineux, hologramme sur la table de réunion, ville et fenêtres allumées derrière. Toujours sombre |
+| Lego | Univers : plastique brillant, sols en plaques à tenons, murs en briques, arbres en briques empilées, minifigs et tas de briques. Clair ou sombre |
 
-Les thèmes « toujours sombres » désactivent la lune, qui sert aux autres à basculer entre clair et sombre. Pour ajouter un thème, ajoutez ses couleurs de scène dans `src/brands.js` et ses variables dans `src/style.css` (bloc `:root[data-brand="…"]`).
+Les thèmes « toujours sombres » désactivent la lune, qui sert aux autres à basculer entre clair et sombre. Pour ajouter un thème de couleurs, ajoutez ses couleurs de scène dans `src/brands.js` et ses variables dans `src/style.css` (bloc `:root[data-brand="…"]`). Pour ajouter un univers, créez son fichier dans `src/styles/` (textures, matériaux, sols par pièce, mobilier à remplacer, décor), déclarez-le dans `src/styles/index.js` et donnez son identifiant au champ `style` du thème ; `src/styles/minecraft.js` sert d'exemple.
 
 ### Variables d'environnement
 
@@ -182,6 +188,6 @@ Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.g
 
 ## Modèles 3D et licences
 
-- Les robots sont construits en code à partir de primitives three.js (`src/robot-model.js`), sans fichier externe.
+- Les robots et leurs variantes d'univers sont construits en code à partir de primitives three.js (`src/robot-model.js` et `src/character-models.js`), sans fichier externe. Tous partagent le même squelette, donc les mêmes animations.
 - `Xbot.glb` : mannequin Mixamo, soumis aux conditions d'Adobe. Il n'est pas redistribuable tel quel : gardez ce dépôt privé ou remplacez ce modèle.
-- Mobilier et décor : construits en code (`src/props.js`), sans modèle externe.
+- Mobilier et décor : construits en code (`src/props.js` et `src/styles/`), sans modèle externe. Les textures (sols, murs, pixels de Minecraft) sont dessinées à la volée (`src/textures.js`), sans fichier image.
