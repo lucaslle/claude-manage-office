@@ -1057,6 +1057,10 @@ body {
   box-shadow: 0 1px 4px rgba(20, 30, 50, 0.25);
 }
 
+.tag--feature {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-ok) 45%, #ffffff) var(--progress, 0%), rgba(255, 255, 255, 0.94) var(--progress, 0%));
+}
+
 .tag--mr {
   background: rgba(61, 99, 184, 0.92);
   color: #ffffff;

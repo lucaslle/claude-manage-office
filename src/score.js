@@ -13,7 +13,7 @@ const LEVEL_BURST = 160;
 const GAIN_BURST = 28;
 const EMPTY_HINT = "Chaque réponse, relecture, réparation ou merge rapporte des points. Les enchaînements rapides les multiplient.";
 const BADGE_ICONS = { first_merge: "⛩", merges_10: "🏁", quick_5: "⚡", repair_5: "🔧", inbox_zero: "📭", streak_5: "🔥", streak_20: "🏆", day_100: "💯", combo_4: "🔗" };
-const EVENT_ICONS = { reply: "💬", quick_reply: "⚡", merge: "⛩", repair: "🔧", review: "👀", ready: "📝", inbox_zero: "📭" };
+const EVENT_ICONS = { reply: "💬", quick_reply: "⚡", merge: "⛩", repair: "🔧", review: "👀", ready: "📝", inbox_zero: "📭", task: "✅", feature: "🚀" };
 
 const badgeName = (id) => BADGES.find((badge) => badge.id === id)?.name ?? id;
 

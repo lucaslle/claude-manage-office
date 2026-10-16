@@ -52,6 +52,16 @@ const MR_CLIPS = {
 const ROBOT_EMOTES = ["Yes", "No", "ThumbsUp"];
 const ROOM_BUBBLES = { acc: "!", fix: "×", arch: "z" };
 
+// Une conversation qui suit une fonctionnalité Spec Kit affiche ses tâches cochées dans son étiquette : « Nom · 7/12 », fond rempli à 58 %.
+const renderTag = (element, spec) => {
+  const feature = spec.feature;
+  const progress = feature && feature.total > 0 ? feature.done / feature.total : null;
+  element.textContent = progress === null ? spec.name : `${spec.name} · ${feature.done}/${feature.total}`;
+  element.classList.toggle("tag--feature", progress !== null);
+  if (progress === null) element.style.removeProperty("--progress");
+  else element.style.setProperty("--progress", `${Math.round(progress * 100)}%`);
+};
+
 const loadModel = (url) =>
   new Promise((resolve, reject) => {
     new GLTFLoader().load(url, resolve, undefined, reject);
@@ -184,7 +194,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
 
     const labelElement = document.createElement("div");
     labelElement.className = !isRobot ? "tag tag--mr" : spec.agent ? "tag tag--agent" : "tag";
-    labelElement.textContent = spec.name;
+    renderTag(labelElement, spec);
     const labelObject = new CSS2DObject(labelElement);
     root.add(labelObject);
 
@@ -514,7 +524,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
         return;
       }
       existing.spec = spec;
-      existing.labelElement.textContent = spec.name;
+      renderTag(existing.labelElement, spec);
       applyCompaction(existing, spec);
       if (existing.exiting || existing.vanish > 0 || existing.storm) return;
       const currentRoom = existing.target ? existing.target.room : existing.room;

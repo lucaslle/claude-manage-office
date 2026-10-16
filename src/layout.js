@@ -100,6 +100,10 @@ export const SLOTS = {
     { x: 1.8, z: -2.2, ry: Math.PI, pose: "work" },
     { x: -1.0, z: 1.0, ry: 0.5, pose: "work" },
     { x: 2.0, z: 1.2, ry: 0.5, pose: "work" },
+    { x: -1.6, z: -0.5, ry: 0.5, pose: "work" },
+    { x: 0.3, z: -0.5, ry: 0.5, pose: "work" },
+    { x: 3.9, z: 1.6, ry: 0.5, pose: "work" },
+    { x: 0.4, z: 1.8, ry: 0.5, pose: "work" },
   ],
   arch: [
     { x: -1.4, z: -1.9, ry: 0.35, pose: "sleep" },

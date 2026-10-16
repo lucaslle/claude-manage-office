@@ -102,6 +102,20 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
       spec.action = ROOM_ACTIONS[eventDefinition.room];
       applyDemoSpecs();
     },
+    tasks: (eventDefinition, spec) => {
+      const done = Math.min(spec.feature.total, spec.feature.done + eventDefinition.tasks);
+      spec.feature = { ...spec.feature, done };
+      spec.why = eventDefinition.note;
+      spec.action = `Continuer la fonctionnalité (${done} tâches sur ${spec.feature.total}).`;
+      applyDemoSpecs();
+    },
+    "feature-done": (eventDefinition, spec) => {
+      spec.feature = { ...spec.feature, done: spec.feature.total };
+      spec.room = eventDefinition.room;
+      spec.why = eventDefinition.note;
+      spec.action = ROOM_ACTIONS[eventDefinition.room];
+      applyDemoSpecs();
+    },
     ready: (eventDefinition, spec) => {
       spec.draft = false;
       spec.why = eventDefinition.note;
