@@ -22,6 +22,9 @@ GRID.forEach((rowRooms, rowIndex) => {
   });
 });
 
+// La zone Pause est le coin salon de la salle des archives : même case du bâtiment, places à elle.
+roomCenters.pause = roomCenters.arch;
+
 // Les places restent hors des deux bandes de passage de chaque pièce (z entre 2.2 et 3.8, x entre -3.8 et -2.2).
 export const SLOTS = {
   acc: [
@@ -76,11 +79,17 @@ export const SLOTS = {
     { x: 2.0, z: 1.2, ry: 0.5, pose: "work" },
   ],
   arch: [
-    { x: -1.6, z: 1.0, ry: 0.35, pose: "sleep" },
-    { x: 0.4, z: 1.0, ry: 0.35, pose: "sleep" },
-    { x: 2.4, z: 1.0, ry: 0.35, pose: "sleep" },
-    { x: -0.6, z: -1.4, ry: 0.35, pose: "sleep" },
-    { x: 1.4, z: -1.4, ry: 0.35, pose: "sleep" },
+    { x: -1.4, z: -1.9, ry: 0.35, pose: "sleep" },
+    { x: 0.5, z: -1.9, ry: 0.35, pose: "sleep" },
+    { x: -1.4, z: 0.1, ry: 0.35, pose: "sleep" },
+    { x: 0.5, z: 0.1, ry: 0.35, pose: "sleep" },
+    { x: -0.5, z: 1.5, ry: 0.35, pose: "sleep" },
+  ],
+  pause: [
+    { x: 4.05, z: -2.6, ry: -Math.PI / 2, pose: "meet" },
+    { x: 4.05, z: -0.8, ry: -Math.PI / 2, pose: "meet" },
+    { x: 2.5, z: -3.2, ry: Math.PI, pose: "stand" },
+    { x: 3.7, z: -3.2, ry: Math.PI, pose: "stand" },
   ],
   meet: [
     { x: -0.4, z: -1.5, ry: 0, pose: "meet" },

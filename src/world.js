@@ -1,11 +1,9 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { GRID, ROOM_SIZE, DOOR_WIDTH, DOOR_ALONG, DOOR_ACROSS, roomCenters } from "./layout.js";
 import { ROOM_LABELS } from "./data.js";
+import { createProps } from "./props.js";
 
-const FURNITURE_SCALE = 0.72;
-const PROP_SCALE = 0.75;
 const WALL_HEIGHT = 3.3;
 const SILL_HEIGHT = 0.8;
 const GLAZING_TOP = WALL_HEIGHT - 0.25;
@@ -20,41 +18,33 @@ const EXIT_DOOR_OPEN_SPEED = 7;
 const EXIT_DOOR_SLAM_SPEED = 16;
 const EXIT_DOOR_WOBBLE = 0.14;
 
+// Sols de bureau tech : grès cérame clair, moquette en dalles, béton ciré. Le bois reste réservé à la zone Pause.
 const FLOORS = {
-  acc: { color: "#d9bf98", kind: "wood" },
-  open: { color: "#dcc4a1", kind: "wood" },
-  rev: { color: "#bcc3d8", kind: "carpet" },
-  mrg: { color: "#d3dad6", kind: "tile" },
-  wait: { color: "#d8c8bc", kind: "carpet" },
-  draft: { color: "#d7dade", kind: "tile" },
-  fix: { color: "#d4c3bd", kind: "tile" },
-  arch: { color: "#cfc2ab", kind: "wood" },
-  meet: { color: "#bfcbe0", kind: "carpet" },
+  acc: { color: "#e3e6eb", kind: "tile" },
+  open: { color: "#cdd4de", kind: "carpet" },
+  rev: { color: "#c8cde4", kind: "carpet" },
+  mrg: { color: "#dde5df", kind: "tile" },
+  wait: { color: "#d8dbe2", kind: "carpet" },
+  draft: { color: "#e0e3e8", kind: "tile" },
+  fix: { color: "#cfcfd2", kind: "concrete" },
+  arch: { color: "#c6ccd6", kind: "carpet" },
+  meet: { color: "#c2cde2", kind: "carpet" },
 };
 
-const FURNITURE_FILES = [
-  "table_medium_long",
-  "table_medium",
-  "table_small",
-  "table_low",
-  "chair_A",
-  "chair_B",
-  "chair_C",
-  "chair_stool",
-  "couch",
-  "armchair",
-  "cabinet_medium",
-  "cabinet_medium_decorated",
-  "cabinet_small",
-  "shelf_A_big",
-  "lamp_standing",
-  "cactus_medium_A",
-  "cactus_medium_B",
-  "cactus_small_A",
-  "rug_rectangle_A",
-  "rug_oval_A",
-  "book_set",
-];
+const ACCENTS = {
+  acc: 0xff6b6b,
+  open: 0x3566f0,
+  rev: 0x8f6bff,
+  mrg: 0x2fbf71,
+  wait: 0xf0a020,
+  draft: 0x94a3b8,
+  fix: 0xe24b4a,
+  arch: 0x64748b,
+  meet: 0x14b8a6,
+};
+
+const PAUSE_ZONE = { x: 3.4, z: -1.5, width: 3.0, depth: 6.8 };
+const ZONE_LABEL_OFFSETS = { arch: -1.1 };
 
 const shadeColor = (hex, amount) => {
   const color = new THREE.Color(hex);
@@ -82,23 +72,49 @@ const makeFloorTexture = (baseColor, kind) => {
       context.fillRect(plank * plankWidth, cut, plankWidth, 1.5);
     }
   } else if (kind === "carpet") {
-    for (let dot = 0; dot < 7000; dot += 1) {
-      context.fillStyle = `rgba(${Math.random() > 0.5 ? "255,255,255" : "0,0,0"},0.05)`;
-      context.fillRect(Math.random() * size, Math.random() * size, 2, 2);
-    }
-  } else {
-    const tiles = 5;
+    const tiles = 6;
     const tileSize = size / tiles;
     for (let row = 0; row < tiles; row += 1) {
       for (let column = 0; column < tiles; column += 1) {
-        context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.025);
+        context.fillStyle = shadeColor(baseColor, (Math.random() - 0.5) * 0.03);
         context.fillRect(column * tileSize, row * tileSize, tileSize, tileSize);
       }
     }
-    context.fillStyle = "rgba(0,0,0,0.09)";
+    for (let dot = 0; dot < 5000; dot += 1) {
+      context.fillStyle = `rgba(${Math.random() > 0.5 ? "255,255,255" : "0,0,0"},0.035)`;
+      context.fillRect(Math.random() * size, Math.random() * size, 2, 2);
+    }
+    context.fillStyle = "rgba(20,30,50,0.1)";
     for (let line = 0; line < tiles; line += 1) {
-      context.fillRect(line * tileSize, 0, 1.5, size);
-      context.fillRect(0, line * tileSize, size, 1.5);
+      context.fillRect(line * tileSize, 0, 1.2, size);
+      context.fillRect(0, line * tileSize, size, 1.2);
+    }
+  } else if (kind === "concrete") {
+    for (let patch = 0; patch < 260; patch += 1) {
+      context.fillStyle = `rgba(${Math.random() > 0.5 ? "255,255,255" : "0,0,0"},${0.02 + Math.random() * 0.03})`;
+      context.beginPath();
+      context.arc(Math.random() * size, Math.random() * size, 14 + Math.random() * 46, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.fillStyle = "rgba(0,0,0,0.12)";
+    context.fillRect(size / 2 - 0.75, 0, 1.5, size);
+    context.fillRect(0, size / 2 - 0.75, size, 1.5);
+  } else {
+    const tiles = 3;
+    const tileSize = size / tiles;
+    for (let row = 0; row < tiles; row += 1) {
+      for (let column = 0; column < tiles; column += 1) {
+        const gradient = context.createLinearGradient(column * tileSize, row * tileSize, (column + 1) * tileSize, (row + 1) * tileSize);
+        gradient.addColorStop(0, shadeColor(baseColor, 0.012 + (Math.random() - 0.5) * 0.02));
+        gradient.addColorStop(1, shadeColor(baseColor, -0.012 + (Math.random() - 0.5) * 0.02));
+        context.fillStyle = gradient;
+        context.fillRect(column * tileSize, row * tileSize, tileSize, tileSize);
+      }
+    }
+    context.fillStyle = "rgba(30,40,60,0.16)";
+    for (let line = 0; line < tiles; line += 1) {
+      context.fillRect(line * tileSize - 1, 0, 2, size);
+      context.fillRect(0, line * tileSize - 1, size, 2);
     }
   }
   const texture = new THREE.CanvasTexture(canvas);
@@ -110,21 +126,7 @@ const makeFloorTexture = (baseColor, kind) => {
   return texture;
 };
 
-const loadFurniture = async () => {
-  const loader = new GLTFLoader();
-  const entries = await Promise.all(
-    FURNITURE_FILES.map(
-      (fileName) =>
-        new Promise((resolve, reject) => {
-          loader.load(`/models/furniture/${fileName}.gltf`, (gltf) => resolve([fileName, gltf.scene]), undefined, reject);
-        }),
-    ),
-  );
-  return Object.fromEntries(entries);
-};
-
 export const buildWorld = async (scene) => {
-  const furniture = await loadFurniture();
   const world = new THREE.Group();
   scene.add(world);
   const roomGroups = {};
@@ -160,20 +162,7 @@ export const buildWorld = async (scene) => {
     return mesh;
   };
 
-  const place = (roomId, name, { x, z, ry = 0, scale = FURNITURE_SCALE, y = 0 }) => {
-    const instance = furniture[name].clone(true);
-    instance.position.set(x, y, z);
-    instance.rotation.y = ry;
-    instance.scale.setScalar(scale);
-    instance.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    roomGroups[roomId].add(instance);
-    return instance;
-  };
+  const props = createProps({ animated });
 
   const plasterMaterial = standardMaterial(0xf5f6f8, { roughness: 0.95 });
   const frameMaterial = standardMaterial(0x7d8794, { roughness: 0.45, metalness: 0.5 });
@@ -213,6 +202,16 @@ export const buildWorld = async (scene) => {
   plinth.receiveShadow = true;
   world.add(plinth);
 
+  const addRoomLabel = (group, roomId, x) => {
+    const labelElement = document.createElement("div");
+    labelElement.className = "room-label";
+    labelElement.textContent = ROOM_LABELS[roomId];
+    const labelObject = new CSS2DObject(labelElement);
+    labelObject.position.set(x, 0.05, ROOM_SIZE / 2 - 0.7);
+    group.add(labelObject);
+    return labelElement;
+  };
+
   GRID.flat().forEach((roomId) => {
     const group = new THREE.Group();
     group.position.set(roomCenters[roomId].x, 0, roomCenters[roomId].z);
@@ -225,14 +224,9 @@ export const buildWorld = async (scene) => {
     floor.position.y = -0.06;
     floor.receiveShadow = true;
     group.add(floor);
-    const labelElement = document.createElement("div");
-    labelElement.className = "room-label";
-    labelElement.textContent = ROOM_LABELS[roomId];
-    const labelObject = new CSS2DObject(labelElement);
-    labelObject.position.set(0, 0.05, ROOM_SIZE / 2 - 0.7);
-    group.add(labelObject);
-    labelElements[roomId] = labelElement;
+    labelElements[roomId] = addRoomLabel(group, roomId, ZONE_LABEL_OFFSETS[roomId] ?? 0);
   });
+  labelElements.pause = addRoomLabel(roomGroups.arch, "pause", PAUSE_ZONE.x);
 
   const wallSegment = (x1, z1, x2, z2, bottom, top, thickness, material, glass = false) => {
     const length = Math.abs(x2 - x1) + Math.abs(z2 - z1);
@@ -337,19 +331,6 @@ export const buildWorld = async (scene) => {
     }
   }
 
-  const addMonitor = (roomId, x, z, ry) => {
-    const group = new THREE.Group();
-    group.position.set(x, 0.9 * PROP_SCALE, z);
-    group.rotation.y = ry;
-    group.scale.setScalar(PROP_SCALE);
-    const screenMaterial = new THREE.MeshStandardMaterial({ color: 0x9ed0ff, emissive: 0x2f7fc4, emissiveIntensity: 0.9, roughness: 0.2 });
-    addBox(group, 0.95, 0.55, 0.05, darkMaterial, 0, 0.55, 0);
-    addBox(group, 0.88, 0.48, 0.02, screenMaterial, 0, 0.55, 0.03);
-    addBox(group, 0.1, 0.28, 0.1, darkMaterial, 0, 0.14, 0);
-    addBox(group, 0.4, 0.03, 0.22, darkMaterial, 0, 0.015, 0.05);
-    addBox(group, 0.5, 0.025, 0.18, metalMaterial, 0, 0.0, 0.5);
-    roomGroups[roomId].add(group);
-  };
 
   const addWallScreen = (roomId, x, width, height, faceColor, emissive) => {
     const screenY = 1.7;
@@ -361,47 +342,61 @@ export const buildWorld = async (scene) => {
 
   // Les trajets traversent chaque pièce sur deux bandes : z entre 2.2 et 3.8 (passage d'une colonne à l'autre)
   // et x entre -3.8 et -2.2 (passage d'une rangée à l'autre). Le mobilier reste en dehors.
-  place("acc", "table_medium_long", { x: -0.6, z: -3.4, ry: 0 });
-  addMonitor("acc", -0.1, -3.4, Math.PI);
-  place("acc", "book_set", { x: -1.2, z: -3.4, y: 0.6, scale: 0.6 });
-  place("acc", "couch", { x: 4.3, z: -2.2, ry: -Math.PI / 2, scale: 0.65 });
-  place("acc", "table_low", { x: 3.2, z: -2.2, ry: Math.PI / 2, scale: 0.55 });
-  place("acc", "rug_oval_A", { x: 0.6, z: 0.6, scale: 1.2 });
-  place("acc", "lamp_standing", { x: 4.3, z: -4.3 });
-  place("acc", "cactus_medium_A", { x: -4.4, z: 0.2 });
-  place("acc", "cactus_small_A", { x: 4.3, z: 4.3 });
+  const M = props.materials;
+  const room = (roomId) => roomGroups[roomId];
+  const backWall = -ROOM_SIZE / 2 + 0.2;
+
+  // Liseré LED au pied du mur du fond de chaque pièce, dans la couleur de la pièce.
+  GRID.flat().forEach((roomId) => props.wallLedge(room(roomId), { x: 0, z: -ROOM_SIZE / 2 + 0.14, width: ROOM_SIZE - 0.8, color: ACCENTS[roomId], intensity: 0.85 }));
+
+  props.counter(room("acc"), { x: -0.3, z: -3.9, width: 3.4, depth: 0.8, top: M.white, light: 0xff6b6b });
+  addBox(room("acc"), 0.8, 0.46, 0.03, M.black, -0.3, 1.38, -4.05);
+  addBox(room("acc"), 0.74, 0.4, 0.01, M.screen, -0.3, 1.38, -4.03).castShadow = false;
+  props.signPanel(room("acc"), { x: -0.3, y: 2.35, z: backWall, width: 3.2, height: 0.8, text: "BUREAUX CLAUDE", accentColor: "#ff6b6b" });
+  props.rug(room("acc"), { x: 0.6, z: 0.4, width: 4.6, depth: 3.2, color: M.fog });
+  props.sofa(room("acc"), { x: 4.3, z: -2.1, ry: -Math.PI / 2, length: 2.4 });
+  props.roundTable(room("acc"), { x: 3.1, z: -2.1, radius: 0.5 });
+  props.pouf(room("acc"), { x: 2.9, z: -3.5, color: M.door[1] });
+  props.plant(room("acc"), { x: 4.4, z: -4.3, height: 1.7 });
+  props.plant(room("acc"), { x: -4.35, z: 0.2, height: 1.5 });
+  props.plant(room("acc"), { x: 4.4, z: 4.3, kind: "snake" });
 
   [-3.4, -0.2].forEach((deskZ) => {
     [-0.9, 2.4].forEach((deskX) => {
-      place("open", "table_medium_long", { x: deskX, z: deskZ });
-      place("open", "chair_A", { x: deskX, z: deskZ + 1.2, ry: Math.PI });
-      addMonitor("open", deskX, deskZ, 0);
+      props.desk(room("open"), { x: deskX, z: deskZ });
+      props.chair(room("open"), { x: deskX, z: deskZ + 1.2, ry: Math.PI });
     });
   });
-  place("open", "cabinet_small", { x: -4.4, z: -4.0, ry: Math.PI / 2 });
-  place("open", "cactus_medium_B", { x: 4.3, z: 4.3 });
-  place("open", "lamp_standing", { x: -4.4, z: 4.3 });
+  props.lockers(room("open"), { x: -4.6, z: -1.7, ry: Math.PI / 2, count: 4 });
+  props.glassBoard(room("open"), { x: 0.8, z: backWall, width: 2.8, height: 1.2 });
+  props.plant(room("open"), { x: 4.3, z: 4.3, height: 1.6 });
+  props.plant(room("open"), { x: -4.4, z: 4.3, kind: "snake" });
 
-  place("rev", "table_medium_long", { x: 0.8, z: -0.4, ry: 0, scale: 0.8 });
-  [-0.1, 1.7].forEach((offset) => place("rev", "chair_B", { x: offset, z: 0.85, ry: Math.PI }));
-  place("rev", "chair_C", { x: -1.3, z: -0.4, ry: Math.PI / 2 });
-  place("rev", "chair_C", { x: 2.9, z: -0.4, ry: -Math.PI / 2 });
-  place("rev", "rug_rectangle_A", { x: 0.8, z: -0.4, scale: 1.3 });
+  props.rug(room("rev"), { x: 0.8, z: -0.4, width: 4.6, depth: 3, color: M.slate });
+  props.meetingTable(room("rev"), { x: 0.8, z: -0.4, width: 3.2, depth: 1.4 });
+  [-0.1, 1.7].forEach((seatX) => {
+    props.chair(room("rev"), { x: seatX, z: 0.85, ry: Math.PI, tone: M.navy });
+    props.chair(room("rev"), { x: seatX, z: -1.65, ry: 0, tone: M.navy });
+  });
+  props.chair(room("rev"), { x: -1.4, z: -0.4, ry: Math.PI / 2, tone: M.navy });
+  props.chair(room("rev"), { x: 3.0, z: -0.4, ry: -Math.PI / 2, tone: M.navy });
   addWallScreen("rev", 0.8, 2.8, 1.5, 0xa9c1ff, 0x3a58c0);
-  place("rev", "cactus_medium_A", { x: 4.3, z: 4.3 });
+  props.plant(room("rev"), { x: 4.3, z: 4.3, height: 1.6 });
 
   [-1.4, 1.4].forEach((offset) => addBox(roomGroups.mrg, 0.26, 2.2, 0.26, metalMaterial, offset, 1.1, -3.6));
   const gateBeam = addBox(roomGroups.mrg, 3.06, 0.3, 0.3, new THREE.MeshStandardMaterial({ color: 0x4bbd6c, emissive: 0x1f8a42, emissiveIntensity: 1.1, roughness: 0.3 }), 0, 2.3, -3.6);
   addBox(roomGroups.mrg, 2.0, 0.02, 8.0, standardMaterial(0xa3c391, { roughness: 0.9 }), 0, 0.01, 0.4);
   for (let stripe = -3; stripe <= 3; stripe += 1) addBox(roomGroups.mrg, 0.12, 0.025, 0.6, standardMaterial(0xf6f8fa), 0, 0.02, stripe * 1.2 + 0.4);
-  place("mrg", "cactus_small_A", { x: 4.3, z: 4.3 });
-  place("mrg", "cactus_small_A", { x: -4.4, z: 4.3 });
-  place("mrg", "cabinet_small", { x: -4.4, z: -1.0, ry: Math.PI / 2 });
+  props.signPanel(room("mrg"), { x: 0, y: 3.0, z: backWall, width: 2.6, height: 0.7, text: "MERGE", accentColor: "#2fbf71" });
+  props.counter(room("mrg"), { x: -4.35, z: -1.0, ry: Math.PI / 2, width: 1.8, depth: 0.6, top: M.white, light: 0x2fbf71 });
+  props.plant(room("mrg"), { x: 4.3, z: 4.3, height: 1.6 });
+  props.plant(room("mrg"), { x: -4.4, z: 4.3, kind: "snake" });
 
-  place("wait", "couch", { x: 0, z: -3.9, ry: 0, scale: 0.72 });
-  place("wait", "table_low", { x: 4.2, z: 1.2, ry: Math.PI / 2, scale: 0.55 });
-  place("wait", "lamp_standing", { x: 4.3, z: -4.3 });
-  place("wait", "cactus_medium_A", { x: -4.4, z: -4.3 });
+  props.bench(room("wait"), { x: 0, z: -3.9, length: 3.2 });
+  props.roundTable(room("wait"), { x: 4.2, z: 1.2, radius: 0.4, top: M.oak });
+  props.plant(room("wait"), { x: 4.4, z: -4.3, height: 1.6 });
+  props.plant(room("wait"), { x: -4.4, z: -4.3, kind: "snake" });
+  props.signPanel(room("wait"), { x: 0, y: 2.7, z: backWall, width: 2.4, height: 0.7, text: "ATTENTE", accentColor: "#f0a020" });
   const ropeMaterial = standardMaterial(0x2e343d, { roughness: 0.6 });
   [-1.0, 1.0].forEach((offset) => {
     [-3.0, -1.4, 0.2, 1.8].forEach((posZ) => {
@@ -413,22 +408,16 @@ export const buildWorld = async (scene) => {
   addBox(roomGroups.wait, 0.55, 1.15, 0.4, standardMaterial(0x3a4a63), 3.8, 0.575, -1.6);
   addBox(roomGroups.wait, 0.4, 0.28, 0.03, new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xb58a12, emissiveIntensity: 0.9 }), 3.8, 0.88, -1.39);
 
-  [-1.6, 0.8, 3.2].forEach((offset) => {
-    place("draft", "table_medium", { x: offset, z: -3.4, ry: 0, scale: 0.6 });
-    addBox(roomGroups.draft, 0.75, 0.02, 0.55, standardMaterial(0xffffff), offset, 0.62, -3.4);
-    place("draft", "chair_stool", { x: offset, z: -2.5, ry: 0, scale: 0.6 });
-  });
+  [-1.6, 0.8, 3.2].forEach((deskX) => props.desk(room("draft"), { x: deskX, z: -2.9, width: 2.0, depth: 0.9, monitors: 1, standing: true }));
+  props.lockers(room("draft"), { x: -4.6, z: 0.0, ry: Math.PI / 2, count: 5 });
+  props.glassBoard(room("draft"), { x: 0.8, z: backWall, width: 3.2, height: 1.3 });
   addBox(roomGroups.draft, 0.08, 1.3, 2.6, standardMaterial(0xf8f9fb, { roughness: 0.35 }), 4.5, 1.2, 0.2);
   addBox(roomGroups.draft, 0.1, 1.4, 2.7, frameMaterial, 4.56, 1.2, 0.2);
-  place("draft", "shelf_A_big", { x: -4.75, z: 0.2, ry: Math.PI / 2, y: 1.3, scale: 0.76 });
-  place("draft", "cactus_medium_A", { x: -4.4, z: 4.3 });
+  props.plant(room("draft"), { x: -4.4, z: 4.3, height: 1.6 });
 
-  place("fix", "table_medium_long", { x: 0.4, z: -3.6, ry: 0, scale: 0.76 });
-  place("fix", "cabinet_medium", { x: -4.4, z: -1.2, ry: Math.PI / 2 });
-  place("fix", "cabinet_small", { x: 3.6, z: -3.7, ry: 0 });
+  props.workbench(room("fix"), { x: 0.4, z: -3.9, width: 5.2 });
+  props.lockers(room("fix"), { x: 4.1, z: -4.0, count: 2 });
   addBox(roomGroups.fix, 0.6, 0.3, 0.3, standardMaterial(0xd04a3a, { roughness: 0.5 }), 3.2, 0.15, 0.6);
-  addBox(roomGroups.fix, 0.3, 0.05, 0.05, metalMaterial, -0.2, 0.74, -3.6);
-  addBox(roomGroups.fix, 0.11, 0.18, 0.11, darkMaterial, 0.9, 0.83, -3.6);
   addCylinder(roomGroups.fix, 0.05, 0.05, 1.4, metalMaterial, 4.2, 0.7, -1.8);
   const beaconMaterial = new THREE.MeshStandardMaterial({ color: 0xe24b4a, emissive: 0xc01818, emissiveIntensity: 1.2, roughness: 0.3 });
   const beacon = addCylinder(roomGroups.fix, 0.17, 0.17, 0.26, beaconMaterial, 4.2, 1.5, -1.8);
@@ -436,26 +425,47 @@ export const buildWorld = async (scene) => {
     beacon.rotation.y = elapsed * 3;
     beaconMaterial.emissiveIntensity = 0.7 + Math.sin(elapsed * 6) * 0.5;
   });
-  place("fix", "cactus_small_A", { x: 4.3, z: 4.3 });
+  props.plant(room("fix"), { x: 4.3, z: 4.3, kind: "snake" });
 
-  [-1.5, 0.3, 2.1, 3.9].forEach((offset, index) => place("arch", index % 2 === 0 ? "cabinet_medium" : "cabinet_medium_decorated", { x: offset, z: -3.9, ry: 0 }));
-  [-1.6, 0.4, 2.4].forEach((offset) => place("arch", "armchair", { x: offset, z: 1.0, ry: 0.35, scale: 0.65 }));
-  [-0.6, 1.4].forEach((offset) => place("arch", "armchair", { x: offset, z: -1.4, ry: 0.35, scale: 0.65 }));
-  place("arch", "lamp_standing", { x: 4.3, z: -1.2 });
-  place("arch", "rug_rectangle_A", { x: 0.4, z: 0.0, scale: 1.5 });
+  // Archives à gauche (baies de serveurs, poufs de sieste), zone Pause à droite, séparées par une paroi vitrée.
+  [-1.7, -0.8, 0.1, 1.0].forEach((rackX) => props.serverRack(room("arch"), { x: rackX, z: -4.35 }));
+  [
+    [-1.4, -1.9, M.slate],
+    [0.5, -1.9, M.navy],
+    [-1.4, 0.1, M.navy],
+    [0.5, 0.1, M.slate],
+    [-0.5, 1.5, M.fog],
+  ].forEach(([bagX, bagZ, color]) => props.beanBag(room("arch"), { x: bagX, z: bagZ, color }));
+  props.lockers(room("arch"), { x: -4.6, z: -1.0, ry: Math.PI / 2, count: 5 });
+  props.box(room("arch"), 0.04, 1.6, 6.0, M.glass, 1.7, 0.8, -2.0, { shadow: false }).renderOrder = 2;
+  props.box(room("arch"), 0.07, 0.07, 6.0, M.graphite, 1.7, 1.62, -2.0, { shadow: false });
+  [-5.0 + 0.03, 1.0].forEach((postZ) => props.box(room("arch"), 0.07, 1.65, 0.07, M.graphite, 1.7, 0.825, postZ, { shadow: false }));
 
-  place("meet", "table_medium_long", { x: 0.6, z: -0.4, ry: 0, scale: 0.85 });
-  place("meet", "rug_rectangle_A", { x: 0.6, z: -0.4, scale: 1.4 });
+  const woodMaterial = new THREE.MeshStandardMaterial({ map: makeFloorTexture("#d8bd92", "wood"), roughness: 0.7, metalness: 0 });
+  floorMaterials.push(woodMaterial);
+  const pauseFloor = props.box(room("arch"), PAUSE_ZONE.width, 0.02, PAUSE_ZONE.depth, woodMaterial, PAUSE_ZONE.x, 0.01, PAUSE_ZONE.z, { shadow: false });
+  pauseFloor.castShadow = false;
+  props.sofa(room("arch"), { x: 4.4, z: -1.7, ry: -Math.PI / 2, length: 2.4, tone: M.door[1] });
+  props.roundTable(room("arch"), { x: 3.0, z: -1.7, radius: 0.5, top: M.oak });
+  props.pouf(room("arch"), { x: 2.3, z: -0.4, color: M.door[2] });
+  props.pouf(room("arch"), { x: 2.2, z: -2.2, color: M.door[0] });
+  props.coffeeBar(room("arch"), { x: 2.9, z: -4.4, width: 2.3 });
+  props.signPanel(room("arch"), { x: 3.4, y: 2.9, z: backWall, width: 1.8, height: 0.6, text: "PAUSE", accentColor: "#14b8a6" });
+  props.plant(room("arch"), { x: 4.4, z: 1.2, height: 1.6 });
+  props.plant(room("arch"), { x: 2.0, z: 1.3, kind: "snake" });
+
+  props.rug(room("meet"), { x: 0.6, z: -0.4, width: 5, depth: 3.4, color: M.slate });
+  props.meetingTable(room("meet"), { x: 0.6, z: -0.4, width: 3.2, depth: 1.5 });
   [-0.4, 0.6, 1.6].forEach((seatX) => {
-    place("meet", "chair_B", { x: seatX, z: -1.5, ry: 0 });
-    place("meet", "chair_B", { x: seatX, z: 0.7, ry: Math.PI });
+    props.chair(room("meet"), { x: seatX, z: -1.6, ry: 0 });
+    props.chair(room("meet"), { x: seatX, z: 0.8, ry: Math.PI });
   });
-  place("meet", "chair_B", { x: -1.5, z: -0.4, ry: Math.PI / 2 });
-  place("meet", "chair_B", { x: 2.7, z: -0.4, ry: -Math.PI / 2 });
+  props.chair(room("meet"), { x: -1.6, z: -0.4, ry: Math.PI / 2 });
+  props.chair(room("meet"), { x: 2.8, z: -0.4, ry: -Math.PI / 2 });
   addWallScreen("meet", 0.6, 2.9, 1.55, 0xb7e3c4, 0x2f8f56);
-  place("meet", "cactus_medium_A", { x: 4.3, z: 4.3 });
-  place("meet", "cactus_medium_B", { x: -4.4, z: 4.3 });
-  place("meet", "lamp_standing", { x: 4.3, z: -4.3 });
+  props.plant(room("meet"), { x: 4.3, z: 4.3, height: 1.6 });
+  props.plant(room("meet"), { x: -4.4, z: 4.3, kind: "snake" });
+  props.plant(room("meet"), { x: 4.3, z: -4.3, height: 1.7 });
 
   const door = { pivot: buildExitDoor(exitDoorX, exitDoorZ), angle: 0, target: 0, slamming: false, wobble: 0, onSlam: null };
   animated.push((elapsed, delta) => {

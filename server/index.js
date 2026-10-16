@@ -51,7 +51,7 @@ const sessionRoutes = createSessionRoutes({
   findSession: (sessionId) => sessions.find((record) => record.sessionId === sessionId) ?? library.findRecord(sessionId),
 });
 
-const buildCurrentCharacters = () => buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000 });
+const buildCurrentCharacters = () => buildCharacters({ sessions, mergeRequests, now: Date.now(), agentMaxAgeMs: config.agentMaxAgeMinutes * 60 * 1000, restMs: config.restMinutes * 60 * 1000 });
 
 const composeState = (characters) => ({
   characters,

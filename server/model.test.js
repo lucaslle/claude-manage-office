@@ -126,9 +126,51 @@ describe("agents", () => {
   });
 
   it("ignore les agents trop anciens et archive de nouveau la session", () => {
-    const session = makeSession({ state: "idle", subagents: [agent("a", 31 * 60 * 1000), agent("b", 40 * 60 * 1000)] });
+    const session = makeSession({ state: "idle", updatedAt: now - 3 * 3600 * 1000, subagents: [agent("a", 31 * 60 * 1000), agent("b", 40 * 60 * 1000)] });
     const characters = buildCharacters({ sessions: [session], mergeRequests: [], now });
     assert.deepEqual(characters.map((character) => character.room), ["arch"]);
+  });
+});
+
+describe("discussion terminée", () => {
+  const now = 1_000_000_000;
+  const HOUR = 3600 * 1000;
+  const build = (session, extra = {}) => buildCharacters({ sessions: [session], mergeRequests: [], now, ...extra })[0];
+
+  it("fait une pause dans la zone Pause pendant le délai de repos", () => {
+    const character = build(makeSession({ state: "idle", updatedAt: now - 30 * 60 * 1000 }));
+    assert.equal(character.room, "pause");
+    assert.equal(character.action, "Aucune, la conversation est terminée.");
+    assert.match(character.why, /pause avant de passer aux archives/);
+  });
+
+  it("passe aux archives une fois le délai écoulé", () => {
+    assert.equal(build(makeSession({ state: "idle", updatedAt: now - 3 * HOUR })).room, "arch");
+  });
+
+  it("respecte un délai de repos personnalisé, et un délai nul remet l'ancien comportement", () => {
+    const session = makeSession({ state: "idle", updatedAt: now - 30 * 60 * 1000 });
+    assert.equal(build(session, { restMs: 10 * 60 * 1000 }).room, "arch");
+    assert.equal(build(session, { restMs: 0 }).room, "arch");
+  });
+
+  it("n'a que quatre places : les plus récentes d'abord, les autres vont aux archives, et l'open space reste libre", () => {
+    const minutes = (count) => now - count * 60 * 1000;
+    const sessions = [
+      makeSession({ sessionId: "w1", state: "working", updatedAt: now }),
+      ...[50, 5, 30, 10, 20, 40].map((age) => makeSession({ sessionId: `t${age}`, state: "idle", updatedAt: minutes(age) })),
+    ];
+    const rooms = Object.fromEntries(buildCharacters({ sessions, mergeRequests: [], now }).map((character) => [character.sessionId, character.room]));
+    assert.deepEqual(rooms, { w1: "open", t5: "pause", t10: "pause", t20: "pause", t30: "pause", t40: "arch", t50: "arch" });
+  });
+
+  it("ne met pas en pause une discussion qui travaille, a une MR, une review ou une question", () => {
+    const fresh = { updatedAt: now - 60 * 1000 };
+    assert.equal(build(makeSession({ ...fresh, state: "working" })).room, "open");
+    assert.equal(build(makeSession({ ...fresh, state: "idle", activity: "review" })).room, "rev");
+    assert.equal(build(makeSession({ ...fresh, state: "needs_reply" })).room, "acc");
+    const withMergeRequest = buildCharacters({ sessions: [makeSession({ ...fresh, state: "idle", branch: "claude/fix" })], mergeRequests: [makeMergeRequest({ projectId: 1, iid: 9, status: "mergeable", sourceBranch: "claude/fix" })], now })[0];
+    assert.equal(withMergeRequest.room, "mrg");
   });
 });
 
@@ -184,8 +226,8 @@ describe("buildCharacters", () => {
     assert.equal(character.room, "mrg");
   });
 
-  it("archive une session au repos sans MR", () => {
-    const [character] = buildCharacters({ sessions: [makeSession({ state: "idle" })], mergeRequests: [] });
+  it("archive une session au repos sans MR une fois le délai de repos écoulé", () => {
+    const [character] = buildCharacters({ sessions: [makeSession({ state: "idle", updatedAt: Date.now() - 3 * 3600 * 1000 })], mergeRequests: [] });
     assert.equal(character.room, "arch");
   });
 

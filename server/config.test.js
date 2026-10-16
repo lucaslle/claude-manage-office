@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { loadConfig } from "./config.js";
 
-const VARIABLES = ["GITLAB_URL", "GITLAB_TOKEN", "GITLAB_POLL_SECONDS", "EDDY_PORT", "EDDY_SESSION_MAX_AGE_HOURS", "EDDY_AGENT_MAX_AGE_MINUTES", "EDDY_CONTEXT_WINDOW", "EDDY_SESSION_DIRS", "EDDY_DETECT_WSL", "EDDY_STATE_DIR"];
+const VARIABLES = ["GITLAB_URL", "GITLAB_TOKEN", "GITLAB_POLL_SECONDS", "EDDY_PORT", "EDDY_SESSION_MAX_AGE_HOURS", "EDDY_AGENT_MAX_AGE_MINUTES", "EDDY_REST_MINUTES", "EDDY_CONTEXT_WINDOW", "EDDY_SESSION_DIRS", "EDDY_DETECT_WSL", "EDDY_STATE_DIR"];
 
 let saved = {};
 
@@ -31,6 +31,13 @@ describe("loadConfig", () => {
     assert.equal(config.sessionMaxAgeHours, 12);
     assert.equal(config.agentMaxAgeMinutes, 5);
     assert.equal(config.contextWindow, 200000);
+  });
+
+  it("laisse deux heures de repos aux discussions terminées, réglable", () => {
+    delete process.env.EDDY_REST_MINUTES;
+    assert.equal(loadConfig().restMinutes, 120);
+    process.env.EDDY_REST_MINUTES = "45";
+    assert.equal(loadConfig().restMinutes, 45);
   });
 
   it("retire la barre oblique finale de l'adresse GitLab", () => {

@@ -17,7 +17,8 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 | Attente | MR qui dépend d'une autre MR encore ouverte |
 | Brouillons | MR marquée Draft |
 | Atelier | Pipeline en échec, conflit ou rebase nécessaire |
-| Archives | Session terminée, sans question ni MR ouverte |
+| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : coin salon avec bar à café (4 places, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`) |
+| Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause. La zone Pause et les archives partagent la même salle, séparées par une paroi vitrée |
 | Salle de réunion | Une session a lancé plusieurs agents : elle s'y installe avec eux |
 
 Quand une session lance des agents, chacun apparaît comme un petit robot. À partir de deux agents actifs, la session et ses agents se retrouvent en salle de réunion ; avec un seul agent, ils restent à l'open space. Tant qu'un agent travaille, la session ne retourne jamais aux archives, même si son tour de parole est terminé. Elle ne rejoint les archives (ou sa MR) qu'une fois tous ses agents terminés. Si elle attend une réponse de votre part, elle va à l'accueil, et ses agents restent en réunion.
@@ -141,6 +142,7 @@ Les thèmes « toujours sombres » désactivent la lune, qui sert aux autres à 
 | `EDDY_PORT` | `5174` | Port du serveur local |
 | `EDDY_SESSION_MAX_AGE_HOURS` | `36` | Les sessions plus anciennes sont masquées |
 | `EDDY_AGENT_MAX_AGE_MINUTES` | `30` | Un agent sans nouvelle de fin au bout de ce délai est considéré comme terminé |
+| `EDDY_REST_MINUTES` | `120` | Durée pendant laquelle une discussion terminée (sans question ni MR) fait une pause en zone Pause avant les archives ; `0` pour l'envoyer tout de suite aux archives |
 | `EDDY_CONTEXT_WINDOW` | (auto) | Force la taille de la fenêtre de contexte, en tokens |
 | `EDDY_SESSION_DIRS` | (vide) | Dossiers de sessions supplémentaires, séparés par `;` |
 | `EDDY_DETECT_WSL` | `true` | Détecter automatiquement les sessions de l'autre système (Windows et WSL) |
@@ -182,4 +184,4 @@ Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.g
 
 - Les robots sont construits en code à partir de primitives three.js (`src/robot-model.js`), sans fichier externe.
 - `Xbot.glb` : mannequin Mixamo, soumis aux conditions d'Adobe. Il n'est pas redistribuable tel quel : gardez ce dépôt privé ou remplacez ce modèle.
-- Mobilier : KayKit Furniture Bits, CC0 (licence dans `public/models/furniture/`).
+- Mobilier et décor : construits en code (`src/props.js`), sans modèle externe.
