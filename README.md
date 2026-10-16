@@ -12,14 +12,12 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 | --- | --- |
 | Accueil | Une session Claude attend votre réponse (question en fin de message ou demande de permission). Le personnage fait signe, avec une bulle « ! » |
 | Open space | Claude travaille |
-| Salle des bugs | Claude travaille sur un correctif : même chose que l'open space, mais pour les discussions qui corrigent un bug (voir ci-dessous). Annexe au bout de la rangée de devant, à côté de l'attente |
-| Relecture | MR ouverte, en attente de relecture ou d'approbation, et conversation où vous faites une review (voir ci-dessous) |
+| Salle des bugs | Claude travaille sur un correctif : même chose que l'open space, mais pour les discussions qui corrigent un bug (voir ci-dessous). Elle occupe la place de l'ancienne salle des brouillons, devant l'atelier. Il n'y a plus de salle des brouillons ni d'attente |
+| Relecture | MR ouverte, en attente de relecture ou d'approbation, MR marquée Draft ou qui dépend d'une autre MR encore ouverte (la raison est indiquée sur sa fiche), et conversation où vous faites une review (voir ci-dessous) |
 | Merge | MR mergeable, sans blocage |
-| Attente | MR qui dépend d'une autre MR encore ouverte |
-| Brouillons | MR marquée Draft |
 | Atelier | Pipeline en échec, conflit ou rebase nécessaire |
-| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : coin salon avec bar à café (4 places, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`) |
-| Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause. La zone Pause et les archives partagent la même salle, séparées par une paroi vitrée |
+| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : salle à part, sur parquet, avec deux coins canapé et un bar à café (6 places, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`). Elle est devant la salle de merge, à droite |
+| Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause |
 | Salle de réunion | Une session a lancé plusieurs agents : elle s'y installe avec eux |
 
 Une discussion est un fix de bug quand son titre ou le nom de sa branche parle de bug, fix, hotfix, correctif, « corriger », erreur, crash, régression, anomalie ou plantage (sans tenir compte des accents ni de la casse ; `fix/login` et `bugfix_PRJ-12` comptent). Tant que Claude travaille dessus, elle va dans la salle des bugs au lieu de l'open space, avec son agent s'il n'en a qu'un. Les autres règles restent prioritaires : une question va à l'accueil, plusieurs agents en salle de réunion, une MR liée dans la pièce de la MR, une discussion terminée en Pause puis aux archives.
@@ -81,7 +79,7 @@ La carte « Score » en haut de la colonne de droite transforme votre réactivit
 | … en moins de cinq minutes : réponse éclair | 25 |
 | Une MR sort de l'atelier (pipeline réparé, conflit résolu) | 20 |
 | Une MR passe de la relecture à la salle de merge | 15 |
-| Un brouillon devient prêt à relire | 5 |
+| Un brouillon devient prêt à relire (la MR n'est plus marquée Draft) | 5 |
 | Une MR est mergée | 40 |
 | Plus personne n'attend à l'accueil | 30 |
 

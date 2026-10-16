@@ -75,14 +75,14 @@ const props = (kit) => {
   };
 };
 
-const decor = ({ world, room, props: kit, courtyard }) => {
+const decor = ({ room, props: kit }) => {
   const piles = [
     ["acc", -4.0, -4.2, [[0.8, 0.4, 0xd01f1f], [0.8, 0.4, 0xf2c200]]],
     ["open", 4.3, 2.6, [[0.8, 0.4, 0x1f6fd1]]],
-    ["draft", 4.0, 2.8, [[0.8, 0.4, 0x2faa4f], [0.8, 0.4, 0xd01f1f], [0.8, 0.4, 0xf2c200]]],
+    ["mrg", 4.0, 2.8, [[0.8, 0.4, 0x2faa4f], [0.8, 0.4, 0xd01f1f], [0.8, 0.4, 0xf2c200]]],
     ["fix", -4.2, 3.0, [[0.8, 0.4, 0xf28c00], [0.8, 0.4, 0x1f6fd1]]],
     ["meet", -4.3, 3.0, [[0.8, 0.4, 0xd01f1f]]],
-    ["wait", -4.2, 2.8, [[0.8, 0.4, 0x2faa4f], [0.8, 0.4, 0xf2c200]]],
+    ["pause", -4.2, 2.8, [[0.8, 0.4, 0x2faa4f], [0.8, 0.4, 0xf2c200]]],
   ];
   piles.forEach(([roomId, pileX, pileZ, layers]) => {
     layers.forEach(([width, height, color], layer) => brick(kit, room(roomId), { x: pileX + layer * 0.06, z: pileZ, y: layer * height, ry: layer * 0.35, width, height, color }));
@@ -92,16 +92,11 @@ const decor = ({ world, room, props: kit, courtyard }) => {
     ["acc", -0.3, -4.55, 0, 0xd01f1f],
     ["rev", -4.2, -3.0, Math.PI / 2, 0x2faa4f],
     ["mrg", 4.2, -1.0, -Math.PI / 2, 0xf2c200],
-    ["draft", 4.2, -3.9, 0, 0x1f6fd1],
+    ["pause", 4.2, 2.6, 0, 0x1f6fd1],
     ["fix", -4.2, -0.4, Math.PI / 2, 0xf28c00],
     ["bug", -3.6, -4.3, 0, 0xd01f1f],
   ].forEach(([roomId, figX, figZ, figRy, torso]) => minifig(kit, room(roomId), { x: figX, z: figZ, ry: figRy, torso }));
 
-  [0xd01f1f, 0xf2c200, 0x1f6fd1, 0x2faa4f].forEach((color, level) => {
-    brick(kit, world, { x: courtyard.x + 3.2, z: courtyard.z - 3.4, y: level * 0.4, ry: level * 0.5, width: 1.6, depth: 0.8, height: 0.4, color });
-  });
-  minifig(kit, world, { x: courtyard.x + 0.6, z: courtyard.z + 0.6, ry: 0.6, torso: 0xd01f1f, scale: 1.6 });
-  minifig(kit, world, { x: courtyard.x - 1.0, z: courtyard.z + 1.4, ry: -0.4, torso: 0x2faa4f, scale: 1.6 });
 };
 
 const FLOORS = {
@@ -109,8 +104,7 @@ const FLOORS = {
   open: "#2f6fe0",
   rev: "#f2c200",
   mrg: "#2faa4f",
-  wait: "#f28c00",
-  draft: "#e9e9e9",
+  pause: "#f28c00",
   fix: "#a82020",
   arch: "#8a8f98",
   meet: "#14a89c",

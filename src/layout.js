@@ -5,13 +5,12 @@ export const DOOR_ACROSS = -3.0;
 
 // La relecture est au centre : elle touche l'open space, l'atelier, la salle de merge et les archives,
 // les quatre pièces avec lesquelles sessions et MR échangent le plus. Accueil, open space et réunion
-// forment la rangée du fond ; brouillons, merge et attente la rangée de devant. La salle des bugs est
-// une annexe au bout de la rangée de devant, à côté de l'attente. null marque une case sans pièce : ici
-// la cour, derrière l'annexe.
+// forment la rangée du fond ; bugs, merge et pause la rangée de devant. La salle des bugs est un open space
+// à part. null marquerait une case sans pièce (aucune pour l'instant).
 export const GRID = [
-  ["acc", "open", "meet", null],
-  ["fix", "rev", "arch", null],
-  ["draft", "mrg", "wait", "bug"],
+  ["acc", "open", "meet"],
+  ["fix", "rev", "arch"],
+  ["bug", "mrg", "pause"],
 ];
 
 export const COLUMNS = GRID[0].length;
@@ -34,9 +33,6 @@ GRID.forEach((rowRooms, rowIndex) => {
     };
   });
 });
-
-// La zone Pause est le coin salon de la salle des archives : même case du bâtiment, places à elle.
-roomCenters.pause = roomCenters.arch;
 
 // Les places restent hors des deux bandes de passage de chaque pièce (z entre 2.2 et 3.8, x entre -3.8 et -2.2).
 export const SLOTS = {
@@ -68,23 +64,6 @@ export const SLOTS = {
     { x: -1.5, z: 0.8, ry: Math.PI, pose: "ready" },
     { x: 1.5, z: 0.8, ry: Math.PI, pose: "ready" },
   ],
-  wait: [
-    { x: 0, z: -2.2, ry: 0.45, pose: "queue" },
-    { x: 0, z: -0.6, ry: 0.45, pose: "queue" },
-    { x: 0, z: 1.0, ry: 0.45, pose: "queue" },
-    { x: 2.6, z: 1.6, ry: 0.45, pose: "queue" },
-    { x: -2.0, z: -3.6, ry: 0.45, pose: "queue" },
-  ],
-  draft: [
-    { x: -1.6, z: -1.7, ry: Math.PI, pose: "work" },
-    { x: 0.8, z: -1.7, ry: Math.PI, pose: "work" },
-    { x: 3.2, z: -1.7, ry: Math.PI, pose: "work" },
-    { x: -1.4, z: 0.4, ry: 0.5, pose: "queue" },
-    { x: 1.0, z: 0.4, ry: 0.5, pose: "queue" },
-    { x: 3.4, z: 0.4, ry: 0.5, pose: "queue" },
-    { x: 0, z: 1.8, ry: 0.5, pose: "queue" },
-    { x: 2.4, z: 1.8, ry: 0.5, pose: "queue" },
-  ],
   fix: [
     { x: -1.4, z: -2.2, ry: Math.PI, pose: "work" },
     { x: 1.8, z: -2.2, ry: Math.PI, pose: "work" },
@@ -97,8 +76,13 @@ export const SLOTS = {
     { x: -1.4, z: 0.1, ry: 0.35, pose: "sleep" },
     { x: 0.5, z: 0.1, ry: 0.35, pose: "sleep" },
     { x: -0.5, z: 1.5, ry: 0.35, pose: "sleep" },
+    { x: 2.6, z: -1.9, ry: 0.35, pose: "sleep" },
+    { x: 2.6, z: 0.1, ry: 0.35, pose: "sleep" },
+    { x: 3.9, z: -0.9, ry: 0.35, pose: "sleep" },
   ],
   pause: [
+    { x: -1.15, z: -2.6, ry: Math.PI / 2, pose: "meet" },
+    { x: -1.15, z: -0.8, ry: Math.PI / 2, pose: "meet" },
     { x: 4.05, z: -2.6, ry: -Math.PI / 2, pose: "meet" },
     { x: 4.05, z: -0.8, ry: -Math.PI / 2, pose: "meet" },
     { x: 2.5, z: -3.2, ry: Math.PI, pose: "stand" },

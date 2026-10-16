@@ -15,12 +15,24 @@ describe("plan du bâtiment", () => {
     });
   });
 
-  it("place la salle des bugs à côté de l'attente, avec une cour derrière", () => {
-    assert.equal(roomAt(3, 2), "bug");
-    assert.equal(roomAt(2, 2), "wait");
-    assert.equal(roomAt(3, 0), null);
-    assert.equal(roomAt(3, 1), null);
+  it("place la salle des bugs devant l'atelier, et la pause à côté de la salle de merge", () => {
+    assert.equal(roomAt(0, 2), "bug");
+    assert.equal(roomAt(0, 1), "fix");
+    assert.equal(roomAt(1, 2), "mrg");
+    assert.equal(roomAt(2, 2), "pause");
     assert.equal(roomAt(9, 9), null);
+  });
+
+  it("n'a plus de salle des brouillons ni d'attente", () => {
+    ["draft", "wait"].forEach((roomId) => {
+      assert.ok(!roomIds.includes(roomId));
+      assert.equal(SLOTS[roomId], undefined);
+    });
+  });
+
+  it("donne à la pause ses propres places, dans sa propre case", () => {
+    assert.notDeepEqual(roomCenters.pause, roomCenters.arch);
+    assert.ok(SLOTS.pause.length >= 6);
   });
 
   it("retrouve la colonne et la rangée d'une position", () => {
@@ -53,11 +65,5 @@ describe("trajets entre les pièces", () => {
         });
       }),
     );
-  });
-
-  it("contourne la case vide pour aller de l'open space à la salle des bugs", () => {
-    const route = buildRoute(center("open").x, center("open").z, center("bug").x, center("bug").z);
-    const crossed = new Set(route.map((point) => roomAt(columnAt(point.x), rowAt(point.z))));
-    assert.ok(crossed.has("meet") && crossed.has("arch") && crossed.has("wait"));
   });
 });

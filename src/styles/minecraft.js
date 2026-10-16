@@ -74,7 +74,7 @@ const props = ({ box, placed, materials: M, base, accent }) => {
   };
 };
 
-const decor = ({ world, room, props: kit, animated, backWall, edge, courtyard }) => {
+const decor = ({ world, room, props: kit, animated, backWall, edge }) => {
   const { box, placed } = kit;
   const log = block("log");
   const flame = new THREE.MeshStandardMaterial({ color: 0xffb02f, emissive: 0xff8a1f, emissiveIntensity: 1.4 });
@@ -98,32 +98,7 @@ const decor = ({ world, room, props: kit, animated, backWall, edge, courtyard })
     return group;
   };
 
-  const sheep = (parent, { x, z, ry = 0, wool = 0xf2f2f2, skin = 0xdcc4a4 }) => {
-    const group = placed(parent, x, z, ry);
-    const fleece = block("wool", { color: wool });
-    const hide = block("wool", { color: skin });
-    [-0.2, 0.2].forEach((legX) => [-0.3, 0.3].forEach((legZ) => box(group, 0.16, 0.3, 0.16, hide, legX, 0.15, legZ)));
-    box(group, 0.62, 0.52, 0.95, fleece, 0, 0.58, 0);
-    box(group, 0.36, 0.36, 0.34, hide, 0, 0.78, 0.6);
-    return group;
-  };
-
   const bookshelf = (parent, { x, y, z }) => box(parent, 0.98, 0.98, 0.5, block("bookshelf"), x, y, z);
-
-  const netherPortal = (parent, { x, z, ry = 0 }) => {
-    const group = placed(parent, x, z, ry);
-    const obsidian = block("deepslate", { color: 0x3a2a55 });
-    [-0.75, 0.75].forEach((side) => box(group, 0.5, 2.5, 0.5, obsidian, side, 1.25, 0));
-    [0.25, 2.25].forEach((level) => box(group, 2.0, 0.5, 0.5, obsidian, 0, level, 0));
-    const swirl = new THREE.MeshStandardMaterial({ color: 0x8a2be2, emissive: 0x7a1fd0, emissiveIntensity: 1, transparent: true, opacity: 0.62, depthWrite: false });
-    const glow = box(group, 1.0, 1.5, 0.12, swirl, 0, 1.25, 0, { shadow: false });
-    glow.renderOrder = 2;
-    animated.push((elapsed) => {
-      swirl.emissiveIntensity = 0.8 + Math.sin(elapsed * 2.4) * 0.3;
-      swirl.opacity = 0.55 + Math.sin(elapsed * 3.1) * 0.08;
-    });
-    return group;
-  };
 
   const exitDoorZ = room("acc").position.z + 3;
   torch(world, edge(0) - 0.7, exitDoorZ - 1.9);
@@ -139,10 +114,6 @@ const decor = ({ world, room, props: kit, animated, backWall, edge, courtyard })
   const reviewRoom = room("rev");
   [0, 1].forEach((column) => [0, 1].forEach((row) => bookshelf(reviewRoom, { x: -3.6 + column, y: 0.5 + row, z: backWall + 0.3 })));
 
-  sheep(world, { x: courtyard.x + 1.6, z: courtyard.z + 1.2, ry: 0.7 });
-  sheep(world, { x: courtyard.x + 2.7, z: courtyard.z + 2.2, ry: -0.5, wool: 0x3a3a3a, skin: 0x2a2a2a });
-  sheep(world, { x: courtyard.x + 0.6, z: courtyard.z - 2.8, ry: 2.2, wool: 0xf4a8a8, skin: 0xf4a8a8 });
-  netherPortal(world, { x: courtyard.x + 0.5, z: courtyard.z - 6.2, ry: 0.9 });
 
   const cloud = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
   const clouds = new THREE.Group();
@@ -196,8 +167,7 @@ export const MINECRAFT_STYLE = {
     open: { kind: "planks" },
     rev: { kind: "stoneBrick" },
     mrg: { kind: "emerald" },
-    wait: { kind: "sand" },
-    draft: { kind: "stone" },
+    pause: { kind: "planks" },
     fix: { kind: "cobble" },
     arch: { kind: "deepslate" },
     meet: { kind: "planks" },

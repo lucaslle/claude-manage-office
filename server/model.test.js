@@ -69,13 +69,13 @@ describe("classifyMergeRequest", () => {
     return classifyMergeRequest(subject, new Map([subject, ...others].map((entry) => [entry.key, entry]))).room;
   };
 
-  it("place un brouillon dans les brouillons, même bloqué", () => {
-    assert.equal(classify({ draft: true }), "draft");
+  it("place un brouillon en relecture, même bloqué", () => {
+    assert.equal(classify({ draft: true }), "rev");
   });
 
-  it("place une MR bloquée par une MR ouverte en salle d'attente", () => {
+  it("place une MR bloquée par une MR ouverte en relecture, avec la raison", () => {
     const blocker = makeMergeRequest({ projectId: 2, iid: 2 });
-    assert.equal(classify({ blockedBy: [blocker.key] }, [blocker]), "wait");
+    assert.equal(classify({ blockedBy: [blocker.key] }, [blocker]), "rev");
   });
 
   it("envoie un pipeline échoué ou un conflit à l'atelier", () => {
@@ -154,14 +154,14 @@ describe("discussion terminée", () => {
     assert.equal(build(session, { restMs: 0 }).room, "arch");
   });
 
-  it("n'a que quatre places : les plus récentes d'abord, les autres vont aux archives, et l'open space reste libre", () => {
+  it("n'a que six places : les plus récentes d'abord, les autres vont aux archives, et l'open space reste libre", () => {
     const minutes = (count) => now - count * 60 * 1000;
     const sessions = [
       makeSession({ sessionId: "w1", state: "working", updatedAt: now }),
-      ...[50, 5, 30, 10, 20, 40].map((age) => makeSession({ sessionId: `t${age}`, state: "idle", updatedAt: minutes(age) })),
+      ...[50, 5, 30, 10, 20, 40, 15, 25, 60].map((age) => makeSession({ sessionId: `t${age}`, state: "idle", updatedAt: minutes(age) })),
     ];
     const rooms = Object.fromEntries(buildCharacters({ sessions, mergeRequests: [], now }).map((character) => [character.sessionId, character.room]));
-    assert.deepEqual(rooms, { w1: "open", t5: "pause", t10: "pause", t20: "pause", t30: "pause", t40: "arch", t50: "arch" });
+    assert.deepEqual(rooms, { w1: "open", t5: "pause", t10: "pause", t15: "pause", t20: "pause", t25: "pause", t30: "pause", t40: "arch", t50: "arch", t60: "arch" });
   });
 
   it("ne met pas en pause une discussion qui travaille, a une MR, une review ou une question", () => {
@@ -236,7 +236,7 @@ describe("buildCharacters", () => {
     const characters = buildCharacters({ sessions: [], mergeRequests: [mergeRequest] });
     assert.deepEqual(
       characters.map((character) => [character.kind, character.room]),
-      [["mr", "draft"]],
+      [["mr", "rev"]],
     );
   });
 });

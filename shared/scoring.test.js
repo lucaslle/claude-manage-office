@@ -7,7 +7,7 @@ const DAY = 24 * 60 * MINUTE;
 const T0 = new Date(2026, 9, 15, 10, 0, 0).getTime();
 
 const session = (key, room, overrides = {}) => ({ key, kind: "robot", room, name: key, ...overrides });
-const mergeRequest = (key, room) => ({ key, kind: "mr", room, name: key });
+const mergeRequest = (key, room, overrides = {}) => ({ key, kind: "mr", room, name: key, ...overrides });
 
 const seeded = (characters, at = T0) => advanceScore(createScore(), { characters, now: at }).score;
 
@@ -48,7 +48,7 @@ describe("advanceScore", () => {
   });
 
   it("récompense une réparation, une relecture et un brouillon terminé", () => {
-    const score = seeded([mergeRequest("m:1", "fix"), mergeRequest("m:2", "rev"), mergeRequest("m:3", "draft")]);
+    const score = seeded([mergeRequest("m:1", "fix"), mergeRequest("m:2", "rev"), mergeRequest("m:3", "rev", { draft: true })]);
     const result = advanceScore(score, { characters: [mergeRequest("m:1", "rev"), mergeRequest("m:2", "mrg"), mergeRequest("m:3", "rev")], now: T0 + 10 * MINUTE });
     assert.deepEqual(result.events.map((event) => event.type), ["repair", "review", "ready"]);
   });

@@ -28,8 +28,7 @@ const FLOORS = {
   open: { color: "#cdd4de", kind: "carpet" },
   rev: { color: "#c8cde4", kind: "carpet" },
   mrg: { color: "#dde5df", kind: "tile" },
-  wait: { color: "#d8dbe2", kind: "carpet" },
-  draft: { color: "#e0e3e8", kind: "tile" },
+  pause: { color: "#d8bd92", kind: "wood" },
   fix: { color: "#cfcfd2", kind: "concrete" },
   bug: { color: "#e6d3cd", kind: "carpet" },
   arch: { color: "#c6ccd6", kind: "carpet" },
@@ -41,16 +40,13 @@ const ACCENTS = {
   open: 0x3566f0,
   rev: 0x8f6bff,
   mrg: 0x2fbf71,
-  wait: 0xf0a020,
-  draft: 0x94a3b8,
+  pause: 0x14b8a6,
   fix: 0xe24b4a,
   bug: 0xff7a3d,
   arch: 0x64748b,
   meet: 0x14b8a6,
 };
 
-const PAUSE_ZONE = { x: 3.4, z: -1.5, width: 3.0, depth: 6.8 };
-const ZONE_LABEL_OFFSETS = { arch: -1.1 };
 
 const wallTexture = (entry) => {
   if (!entry) return null;
@@ -163,7 +159,8 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   const floorFor = (roomId) => {
     const base = FLOORS[roomId];
     const override = style.floors?.[roomId];
-    return { color: override?.color ?? base.color, kind: override?.kind ?? style.floorKinds?.[base.kind] ?? base.kind };
+    const woodKind = roomId === "pause" ? style.woodKind : undefined;
+    return { color: override?.color ?? base.color, kind: override?.kind ?? woodKind ?? style.floorKinds?.[base.kind] ?? base.kind };
   };
 
   rooms.forEach((roomId) => {
@@ -182,9 +179,8 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
     floor.position.y = -0.06;
     floor.receiveShadow = true;
     group.add(floor);
-    labelElements[roomId] = addRoomLabel(group, roomId, ZONE_LABEL_OFFSETS[roomId] ?? 0);
+    labelElements[roomId] = addRoomLabel(group, roomId, 0);
   });
-  labelElements.pause = addRoomLabel(roomGroups.arch, "pause", PAUSE_ZONE.x);
 
   const wallSegment = (x1, z1, x2, z2, bottom, top, thickness, material, glass = false) => {
     const length = Math.abs(x2 - x1) + Math.abs(z2 - z1);
@@ -388,29 +384,6 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   props.plant(room("mrg"), { x: 4.3, z: 4.3, height: 1.6 });
   props.plant(room("mrg"), { x: -4.4, z: 4.3, kind: "snake" });
 
-  props.bench(room("wait"), { x: 0, z: -3.9, length: 3.2 });
-  props.roundTable(room("wait"), { x: 4.2, z: 1.2, radius: 0.4, top: M.oak });
-  props.plant(room("wait"), { x: 4.4, z: -4.3, height: 1.6 });
-  props.plant(room("wait"), { x: -4.4, z: -4.3, kind: "snake" });
-  props.signPanel(room("wait"), { x: 0, y: 2.7, z: backWall, width: 2.4, height: 0.7, text: "ATTENTE", accentColor: "#f0a020" });
-  const ropeMaterial = standardMaterial(0x2e343d, { roughness: 0.6 });
-  [-1.0, 1.0].forEach((offset) => {
-    [-3.0, -1.4, 0.2, 1.8].forEach((posZ) => {
-      addCylinder(roomGroups.wait, 0.04, 0.07, 0.75, metalMaterial, offset, 0.375, posZ);
-      addCylinder(roomGroups.wait, 0.07, 0.07, 0.04, metalMaterial, offset, 0.77, posZ);
-    });
-    [-3.0, -1.4, 0.2].forEach((posZ) => addBox(roomGroups.wait, 0.03, 0.04, 1.5, ropeMaterial, offset, 0.68, posZ + 0.8));
-  });
-  addBox(roomGroups.wait, 0.55, 1.15, 0.4, standardMaterial(0x3a4a63), 3.8, 0.575, -1.6);
-  addBox(roomGroups.wait, 0.4, 0.28, 0.03, new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xb58a12, emissiveIntensity: 0.9 }), 3.8, 0.88, -1.39);
-
-  [-1.6, 0.8, 3.2].forEach((deskX) => props.desk(room("draft"), { x: deskX, z: -2.9, width: 2.0, depth: 0.9, monitors: 1, standing: true }));
-  props.lockers(room("draft"), { x: -4.6, z: 0.0, ry: Math.PI / 2, count: 5 });
-  props.glassBoard(room("draft"), { x: 0.8, z: backWall, width: 3.2, height: 1.3 });
-  addBox(roomGroups.draft, 0.08, 1.3, 2.6, standardMaterial(0xf8f9fb, { roughness: 0.35 }), 4.5, 1.2, 0.2);
-  addBox(roomGroups.draft, 0.1, 1.4, 2.7, frameMaterial, 4.56, 1.2, 0.2);
-  props.plant(room("draft"), { x: -4.4, z: 4.3, height: 1.6 });
-
   props.workbench(room("fix"), { x: 0.4, z: -3.9, width: 5.2 });
   props.lockers(room("fix"), { x: 4.1, z: -4.0, count: 2 });
   addBox(roomGroups.fix, 0.6, 0.3, 0.3, standardMaterial(0xd04a3a, { roughness: 0.5 }), 3.2, 0.15, 0.6);
@@ -423,32 +396,38 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   });
   props.plant(room("fix"), { x: 4.3, z: 4.3, kind: "snake" });
 
-  // Archives à gauche (baies de serveurs, poufs de sieste), zone Pause à droite, séparées par une paroi vitrée.
-  [-1.7, -0.8, 0.1, 1.0].forEach((rackX) => props.serverRack(room("arch"), { x: rackX, z: -4.35 }));
+  // Archives : baies de serveurs au fond, poufs de sieste au milieu, casiers à gauche.
+  [-1.7, -0.6, 0.5, 1.6, 2.7, 3.8].forEach((rackX) => props.serverRack(room("arch"), { x: rackX, z: -4.35 }));
   [
     [-1.4, -1.9, M.slate],
     [0.5, -1.9, M.navy],
     [-1.4, 0.1, M.navy],
     [0.5, 0.1, M.slate],
     [-0.5, 1.5, M.fog],
+    [2.6, -1.9, M.fog],
+    [2.6, 0.1, M.navy],
+    [3.9, -0.9, M.slate],
   ].forEach(([bagX, bagZ, color]) => props.beanBag(room("arch"), { x: bagX, z: bagZ, color }));
   props.lockers(room("arch"), { x: -4.6, z: -1.0, ry: Math.PI / 2, count: 5 });
-  props.box(room("arch"), 0.04, 1.6, 6.0, M.glass, 1.7, 0.8, -2.0, { shadow: false }).renderOrder = 2;
-  props.box(room("arch"), 0.07, 0.07, 6.0, M.graphite, 1.7, 1.62, -2.0, { shadow: false });
-  [-5.0 + 0.03, 1.0].forEach((postZ) => props.box(room("arch"), 0.07, 1.65, 0.07, M.graphite, 1.7, 0.825, postZ, { shadow: false }));
+  props.plant(room("arch"), { x: 4.4, z: 4.3, height: 1.6 });
+  props.plant(room("arch"), { x: -4.4, z: 4.3, kind: "snake" });
 
-  const woodMaterial = new THREE.MeshStandardMaterial({ map: makeFloorTexture("#d8bd92", style.woodKind ?? "wood"), roughness: 0.7, metalness: 0 });
-  floorMaterials.push(woodMaterial);
-  const pauseFloor = props.box(room("arch"), PAUSE_ZONE.width, 0.02, PAUSE_ZONE.depth, woodMaterial, PAUSE_ZONE.x, 0.01, PAUSE_ZONE.z, { shadow: false });
-  pauseFloor.castShadow = false;
-  props.sofa(room("arch"), { x: 4.4, z: -1.7, ry: -Math.PI / 2, length: 2.4, tone: M.door[1] });
-  props.roundTable(room("arch"), { x: 3.0, z: -1.7, radius: 0.5, top: M.oak });
-  props.pouf(room("arch"), { x: 2.3, z: -0.4, color: M.door[2] });
-  props.pouf(room("arch"), { x: 2.2, z: -2.2, color: M.door[0] });
-  props.coffeeBar(room("arch"), { x: 2.9, z: -4.4, width: 2.3 });
-  props.signPanel(room("arch"), { x: 3.4, y: 2.9, z: backWall, width: 1.8, height: 0.6, text: "PAUSE", accentColor: "#14b8a6" });
-  props.plant(room("arch"), { x: 4.4, z: 1.2, height: 1.6 });
-  props.plant(room("arch"), { x: 2.0, z: 1.3, kind: "snake" });
+  // Pause : un vrai salon sur parquet, deux coins canapé face à face et le bar à café au fond.
+  props.rug(room("pause"), { x: 1.4, z: -1.7, width: 6.8, depth: 4.2, color: M.fog });
+  props.sofa(room("pause"), { x: -1.5, z: -1.7, ry: Math.PI / 2, length: 2.4, tone: M.door[0] });
+  props.roundTable(room("pause"), { x: -0.2, z: -1.7, radius: 0.5, top: M.oak });
+  props.sofa(room("pause"), { x: 4.4, z: -1.7, ry: -Math.PI / 2, length: 2.4, tone: M.door[1] });
+  props.roundTable(room("pause"), { x: 3.0, z: -1.7, radius: 0.5, top: M.oak });
+  props.pouf(room("pause"), { x: 2.3, z: -0.4, color: M.door[2] });
+  props.pouf(room("pause"), { x: 2.2, z: -2.2, color: M.door[0] });
+  props.pouf(room("pause"), { x: -0.2, z: -0.3, color: M.door[3] });
+  props.bench(room("pause"), { x: -0.4, z: -4.15, length: 2.4 });
+  props.coffeeBar(room("pause"), { x: 2.9, z: -4.4, width: 2.3 });
+  props.signPanel(room("pause"), { x: 2.9, y: 2.9, z: backWall, width: 1.8, height: 0.6, text: "PAUSE", accentColor: "#14b8a6" });
+  props.plant(room("pause"), { x: 4.4, z: 4.3, height: 1.6 });
+  props.plant(room("pause"), { x: 2.0, z: 1.3, kind: "snake" });
+  props.plant(room("pause"), { x: -4.4, z: -4.3, height: 1.7 });
+  props.plant(room("pause"), { x: -4.4, z: 4.3, kind: "snake" });
 
   props.rug(room("meet"), { x: 0.6, z: -0.4, width: 5, depth: 3.4, color: M.slate });
   props.meetingTable(room("meet"), { x: 0.6, z: -0.4, width: 3.2, depth: 1.5 });
@@ -463,15 +442,7 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   props.plant(room("meet"), { x: -4.4, z: 4.3, kind: "snake" });
   props.plant(room("meet"), { x: 4.3, z: -4.3, height: 1.7 });
 
-  // Les cases sans pièce, derrière l'annexe des bugs, font une cour : banc, plantes et, selon le style, un coin à thème.
-  const courtyard = { x: columnCenter(COLUMNS - 1), z: rowToZ(0.5), width: ROOM_SIZE, depth: ROOM_SIZE * 2 };
-  props.bench(world, { x: courtyard.x - 1.5, z: courtyard.z + 2.5, ry: Math.PI / 2, length: 3 });
-  props.plant(world, { x: courtyard.x - 4.0, z: courtyard.z - 8.2, height: 1.7 });
-  props.plant(world, { x: courtyard.x + 3.8, z: courtyard.z - 8.2, kind: "snake" });
-  props.plant(world, { x: courtyard.x + 3.8, z: courtyard.z + 8.2, height: 1.6 });
-  props.plant(world, { x: courtyard.x - 4.0, z: courtyard.z + 8.2, kind: "snake" });
-
-  style.decor?.({ THREE, world, room, rooms, props, M, addBox, addCylinder, animated, roomGroups, ROOM_SIZE, backWall, ACCENTS, edge, standardMaterial, scene, courtyard, centerX, centerZ, slabWidth, slabDepth });
+  style.decor?.({ THREE, world, room, rooms, props, M, addBox, addCylinder, animated, roomGroups, ROOM_SIZE, backWall, ACCENTS, edge, standardMaterial, scene, centerX, centerZ, slabWidth, slabDepth });
 
   const door = { pivot: buildExitDoor(exitDoorX, exitDoorZ), angle: 0, target: 0, slamming: false, wobble: 0, onSlam: null };
   animated.push((elapsed, delta) => {

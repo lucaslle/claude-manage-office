@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { makeFloorTexture } from "../textures.js";
 
 // Chef : une cuisine de restaurant. Carrelage blanc aux murs, damiers et carreaux de terre cuite au sol,
 // inox partout, plantes en citronniers et en bacs d'aromates, casiers en frigos, atelier en piano de cuisson.
@@ -92,7 +91,7 @@ const props = ({ box, cylinder, sphere, placed, materials: M, accent, base, seed
   };
 };
 
-const decor = ({ world, room, props: kit, courtyard }) => {
+const decor = ({ room, props: kit }) => {
   const { box, cylinder, sphere, placed, materials: M, accent } = kit;
   const brick = new THREE.MeshStandardMaterial({ color: 0xb5654a, roughness: 0.9 });
   const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
@@ -119,7 +118,7 @@ const decor = ({ world, room, props: kit, courtyard }) => {
     });
     return group;
   };
-  [["open", -4.78, -1.2], ["bug", -4.78, -1.2], ["draft", -4.78, -2.6]].forEach(([roomId, rackX, rackZ]) => panRack(room(roomId), { x: rackX, z: rackZ }));
+  [["open", -4.78, -1.2], ["bug", -4.78, -1.2]].forEach(([roomId, rackX, rackZ]) => panRack(room(roomId), { x: rackX, z: rackZ }));
 
   const hat = (parent, { x, y, z }) => {
     const group = placed(parent, x, z, 0, y);
@@ -129,22 +128,6 @@ const decor = ({ world, room, props: kit, courtyard }) => {
   };
   hat(room("acc"), { x: 1.1, y: 0.975, z: -3.9 });
 
-  const cloth = new THREE.MeshStandardMaterial({ map: makeFloorTexture("#c62828", "checker"), roughness: 0.9 });
-  box(world, 2.2, 0.06, 1.1, cloth, courtyard.x + 2.6, 0.78, courtyard.z + 4.6);
-  [-0.9, 0.9].forEach((legX) => box(world, 0.08, 0.76, 0.9, M.oak, courtyard.x + 2.6 + legX, 0.38, courtyard.z + 4.6));
-  [-0.85, 0.85].forEach((bench) => box(world, 2.2, 0.08, 0.36, M.oak, courtyard.x + 2.6, 0.45, courtyard.z + 4.6 + bench));
-  cylinder(world, 0.04, 0.04, 2.2, M.steel, courtyard.x + 2.6, 1.1, courtyard.z + 4.6, 8);
-  const umbrella = new THREE.Mesh(new THREE.ConeGeometry(1.5, 0.5, 20), new THREE.MeshStandardMaterial({ color: 0xc62828, roughness: 0.8, side: THREE.DoubleSide }));
-  umbrella.position.set(courtyard.x + 2.6, 2.35, courtyard.z + 4.6);
-  umbrella.castShadow = true;
-  world.add(umbrella);
-
-  [-1, 0, 1].forEach((bed) => {
-    const bedZ = courtyard.z - 3.2 + bed * 1.5;
-    box(world, 3.0, 0.4, 1.0, M.oak, courtyard.x - 2.4, 0.2, bedZ);
-    box(world, 2.8, 0.04, 0.8, M.soil, courtyard.x - 2.4, 0.42, bedZ);
-    for (let plantIndex = 0; plantIndex < 5; plantIndex += 1) sphere(world, 0.2, plantIndex % 2 ? M.leaf : M.leafDark, courtyard.x - 3.6 + plantIndex * 0.6, 0.6, bedZ, [1, 0.9, 1]);
-  });
 };
 
 const FLOORS = {
@@ -152,8 +135,7 @@ const FLOORS = {
   open: { color: "#b5532e", kind: "quarry" },
   rev: { color: "#6b7b8a", kind: "tile" },
   mrg: { color: "#2f7d4f", kind: "checker" },
-  wait: { color: "#d4a017", kind: "checker" },
-  draft: { color: "#c9c1b4", kind: "tile" },
+  pause: { color: "#d4a017", kind: "checker" },
   fix: { color: "#9aa0a6", kind: "concrete" },
   arch: { color: "#8b5a2b", kind: "wood" },
   meet: { color: "#8a1f1f", kind: "checker" },

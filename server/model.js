@@ -4,8 +4,6 @@ const ROOM_ACTIONS = {
   bug: "Aucune, Claude corrige le bug.",
   rev: "Relire la MR.",
   mrg: "Merger la MR.",
-  wait: "Attendre la MR dont elle dépend.",
-  draft: "Finir le brouillon.",
   fix: "Corriger la CI ou résoudre le conflit.",
   arch: "Aucune.",
   pause: "Aucune, la conversation est terminée.",
@@ -14,7 +12,7 @@ const ROOM_ACTIONS = {
 
 const REVIEW_ACTION = "Lire la review de Claude.";
 const DEFAULT_REST_MS = 2 * 60 * 60 * 1000;
-const PAUSE_SEATS = 4;
+const PAUSE_SEATS = 6;
 
 const MEETING_MIN_AGENTS = 2;
 const MAX_AGENTS_PER_SESSION = 8;
@@ -32,11 +30,11 @@ const hashString = (text) => [...text].reduce((total, character) => (total * 31 
 const truncate = (text, maxLength) => (text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text);
 
 export const classifyMergeRequest = (mergeRequest, byKey) => {
-  if (mergeRequest.draft) return { room: "draft", reason: "MR marquée Draft." };
+  if (mergeRequest.draft) return { room: "rev", reason: "MR marquée Draft : pas encore prête.", action: "Finir le brouillon." };
   const blockers = mergeRequest.blockedBy.map((key) => byKey.get(key)).filter(Boolean);
   if (blockers.length > 0) {
     const names = blockers.map((blocker) => `${blocker.repo} !${blocker.iid}`).join(", ");
-    return { room: "wait", reason: `Dépend de ${names}, pas encore mergée.` };
+    return { room: "rev", reason: `Dépend de ${names}, pas encore mergée.`, action: "Attendre le merge de la MR dont elle dépend." };
   }
   if (mergeRequest.hasConflicts || mergeRequest.status === "conflict") return { room: "fix", reason: "Conflit avec la branche cible." };
   if (mergeRequest.status === "need_rebase") return { room: "fix", reason: "La branche doit être rebasée." };
@@ -170,7 +168,8 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
       title: mergeRequest.title,
       why: classification.reason,
       mr: describeMergeRequest(mergeRequest),
-      action: ROOM_ACTIONS[classification.room],
+      action: classification.action ?? ROOM_ACTIONS[classification.room],
+      draft: Boolean(mergeRequest.draft),
       url: mergeRequest.url,
       tint: 0,
     });

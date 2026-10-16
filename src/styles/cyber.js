@@ -76,8 +76,8 @@ const props = ({ box, cylinder, placed, materials: M, accent, base, animated }) 
   };
 };
 
-const decor = ({ world, props: kit, animated, courtyard, centerX, centerZ }) => {
-  const { box, cylinder, placed, materials: M, accent } = kit;
+const decor = ({ world, props: kit, centerX, centerZ }) => {
+  const { accent } = kit;
 
   const windows = makeWindowTextures();
   const skyline = new THREE.Group();
@@ -106,28 +106,6 @@ const decor = ({ world, props: kit, animated, courtyard, centerX, centerZ }) => 
   for (let index = 0; index < 16; index += 1) tower(centerX - 40 - random() * 14 - 6, centerZ - 28 + index * 4.4 + random() * 2);
   for (let index = 0; index < 8; index += 1) tower(centerX + 44 + random() * 16, centerZ - 28 + index * 5 + random() * 2);
 
-  const pillar = placed(world, courtyard.x, courtyard.z - 2);
-  const beam = new THREE.MeshStandardMaterial({ color: 0xff2bd6, emissive: 0xff2bd6, emissiveIntensity: 1.3, transparent: true, opacity: 0.4, depthWrite: false });
-  cylinder(pillar, 0.6, 0.6, 0.12, M.black, 0, 0.06, 0, 28);
-  const column = cylinder(pillar, 0.28, 0.28, 3.6, beam, 0, 1.9, 0, 20);
-  column.castShadow = false;
-  column.renderOrder = 2;
-  [0.5, 1.4, 2.3, 3.2].forEach((level, index) => {
-    const ring = cylinder(pillar, 0.5, 0.5, 0.025, accent(index % 2 ? 0x00e5ff : 0xff2bd6, 1.8), 0, level, 0, 28);
-    ring.castShadow = false;
-    animated.push((elapsed) => {
-      ring.rotation.y = elapsed * (index % 2 ? 1 : -1);
-      ring.scale.setScalar(1 + Math.sin(elapsed * 2 + index) * 0.15);
-    });
-  });
-
-  [-3.5, 4.5].forEach((offset, index) => {
-    const vending = placed(world, courtyard.x + 3.7, courtyard.z + offset + 2, -Math.PI / 2);
-    box(vending, 0.9, 1.9, 0.8, M.graphite, 0, 0.95, 0);
-    box(vending, 0.7, 1.2, 0.02, accent(NEON[index + 1], 1.4), 0, 1.15, 0.41, { shadow: false });
-    box(vending, 0.5, 0.12, 0.02, M.black, 0, 0.32, 0.41, { shadow: false });
-  });
-
 };
 
 const FLOORS = {
@@ -135,8 +113,7 @@ const FLOORS = {
   open: "#10172e",
   rev: "#161233",
   mrg: "#0f2230",
-  wait: "#221420",
-  draft: "#171a2b",
+  pause: "#221420",
   fix: "#25101a",
   arch: "#121425",
   meet: "#0f1f2b",
