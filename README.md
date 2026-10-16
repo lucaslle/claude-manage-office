@@ -121,7 +121,7 @@ La colonne de droite affiche vos limites Claude (session de 5 heures, semaine to
 
 ### Thèmes d'entreprise
 
-Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs de toute l'application : interface, murs, sols et éclairage de la scène 3D. Certains thèmes changent aussi l'univers de la scène (textures, mobilier, décor) : le bâtiment est alors reconstruit sans toucher aux personnages. Le choix est mémorisé dans le navigateur.
+Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs de toute l'application : interface, murs, sols et éclairage de la scène 3D. Certains thèmes changent aussi l'univers de la scène (textures, mobilier, décor) : le bâtiment est alors reconstruit et les robots changent d'apparence sur place, sans bouger de pièce : équipiers dans Among Us, Steve dans Minecraft, minifigs dans Lego, robots cuisiniers avec toque dans Chef, robots chromés à néons dans Cyberpunk (les silhouettes de MR restent les mêmes). Le choix est mémorisé dans le navigateur.
 
 | Thème | Style |
 | --- | --- |
@@ -188,6 +188,6 @@ Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.g
 
 ## Modèles 3D et licences
 
-- Les robots sont construits en code à partir de primitives three.js (`src/robot-model.js`), sans fichier externe.
+- Les robots et leurs variantes d'univers sont construits en code à partir de primitives three.js (`src/robot-model.js` et `src/character-models.js`), sans fichier externe. Tous partagent le même squelette, donc les mêmes animations.
 - `Xbot.glb` : mannequin Mixamo, soumis aux conditions d'Adobe. Il n'est pas redistribuable tel quel : gardez ce dépôt privé ou remplacez ce modèle.
 - Mobilier et décor : construits en code (`src/props.js` et `src/styles/`), sans modèle externe. Les textures (sols, murs, pixels de Minecraft) sont dessinées à la volée (`src/textures.js`), sans fichier image.

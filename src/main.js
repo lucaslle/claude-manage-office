@@ -5,6 +5,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildWorld } from "./world.js";
 import { loadStyle } from "./styles/index.js";
 import { disposeObject } from "./textures.js";
+import { buildCharacterModel, characterFor } from "./character-models.js";
 import { createCharacters, loadCharacterModels } from "./characters.js";
 import { createRenderPipeline } from "./postfx.js";
 import { createUi } from "./ui.js";
@@ -63,6 +64,7 @@ let builtStyleId = null;
 let mounting = Promise.resolve();
 let lastOverflow = {};
 let slamHandler = null;
+let crowdRef = null;
 
 // Changer de thème d'entreprise peut changer tout le décor : on reconstruit alors le bâtiment, sans toucher aux personnages.
 const mountWorld = async () => {
@@ -80,6 +82,7 @@ const mountWorld = async () => {
   builtStyleId = styleId;
   if (slamHandler) world.exitDoor.onSlam(slamHandler);
   world.setRoomOverflow(lastOverflow);
+  crowdRef?.setRobotModel(buildCharacterModel(characterFor(styleId)));
   applyScenePalette();
 };
 
@@ -158,7 +161,7 @@ const resize = () => {
 new ResizeObserver(resize).observe(stage);
 resize();
 
-const [models] = await Promise.all([loadCharacterModels(), syncWorldStyle()]);
+const [models] = await Promise.all([loadCharacterModels(characterFor(styleIdOf())), syncWorldStyle()]);
 const COMPACT_DUST = 18;
 // La porte d'entrée change quand le décor est reconstruit : les personnages passent par ce relais, qui vise toujours la porte actuelle.
 const exitDoor = {
@@ -182,6 +185,7 @@ const crowd = createCharacters({
     effects.gain({ x: position.x, y: position.y + 0.9, z: position.z }, "Compacté !", "compact");
   },
 });
+crowdRef = crowd;
 const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta") });
 const connectorsPanel = createConnectorsPanel({
   body: document.getElementById("connectors-body"),
