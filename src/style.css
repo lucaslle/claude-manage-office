@@ -730,6 +730,11 @@ body {
   pointer-events: none;
 }
 
+.hud__item {
+  position: relative;
+  pointer-events: auto;
+}
+
 .hud__chip {
   display: inline-flex;
   align-items: center;
@@ -740,7 +745,72 @@ body {
   background: color-mix(in srgb, var(--color-surface) 80%, transparent);
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-card);
+  color: inherit;
+  font: inherit;
   font-size: 12.5px;
+  cursor: pointer;
+}
+
+.hud__chip:disabled {
+  cursor: default;
+}
+
+.hud__chip:not(:disabled):hover,
+.hud__chip[aria-expanded="true"] {
+  border-color: var(--color-accent);
+}
+
+.hud__list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  min-width: 230px;
+  max-width: min(320px, 80vw);
+  max-height: 260px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.hud__entry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hud__entry:hover,
+.hud__entry:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.hud__entry-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hud__entry-title {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hud__dot {
