@@ -49,17 +49,50 @@ const listLocalFiles = (directory, depth = 0) => {
   });
 };
 
-const cliSessionIdOf = (filePath) => {
+const text = (value) => (typeof value === "string" ? value : "");
+const timestamp = (value) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+const HEAD_BYTES = 8192;
+const LARGE_SECTION = '"remoteMcpServersConfig"';
+
+// Les champs utiles sont au début du fichier ; la suite (liste d'outils des connecteurs) est lourde et inutile ici.
+const readHeadObject = (filePath) => {
+  const descriptor = fs.openSync(filePath, "r");
+  try {
+    const buffer = Buffer.alloc(HEAD_BYTES);
+    const bytesRead = fs.readSync(descriptor, buffer, 0, HEAD_BYTES, 0);
+    const head = buffer.toString("utf8", 0, bytesRead).replace(/^﻿/, "");
+    const cut = head.indexOf(LARGE_SECTION);
+    if (cut > 0) return JSON.parse(`${head.slice(0, cut).replace(/,\s*$/, "")}}`);
+  } catch {
+    // le début n'est pas exploitable : lecture complète ci-dessous
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  return JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^﻿/, ""));
+};
+
+const readEntry = (filePath) => {
   try {
     const { mtimeMs } = fs.statSync(filePath);
     const cached = knownFiles.get(filePath);
-    if (cached && cached.mtimeMs === mtimeMs) return cached.cliSessionId;
-    const data = JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^﻿/, ""));
-    const entry = { mtimeMs, cliSessionId: typeof data.cliSessionId === "string" ? data.cliSessionId : "", appSessionId: typeof data.sessionId === "string" ? data.sessionId : "" };
+    if (cached && cached.mtimeMs === mtimeMs) return cached;
+    const data = readHeadObject(filePath);
+    const entry = {
+      mtimeMs,
+      cliSessionId: text(data.cliSessionId),
+      appSessionId: text(data.sessionId),
+      title: text(data.title),
+      cwd: text(data.originCwd) || text(data.cwd),
+      model: text(data.model),
+      archived: data.isArchived === true,
+      createdAt: timestamp(data.createdAt),
+      lastActivityAt: timestamp(data.lastActivityAt),
+    };
     knownFiles.set(filePath, entry);
-    return entry.cliSessionId;
+    return entry;
   } catch {
-    return "";
+    return null;
   }
 };
 
@@ -67,13 +100,18 @@ export const findDesktopSessionId = (cliSessionId, roots = desktopSessionRoots()
   if (!cliSessionId) return "";
   for (const root of roots) {
     for (const filePath of listLocalFiles(root)) {
-      if (cliSessionIdOf(filePath) !== cliSessionId) continue;
-      const appSessionId = knownFiles.get(filePath)?.appSessionId ?? "";
-      if (APP_SESSION_ID.test(appSessionId)) return appSessionId;
+      const entry = readEntry(filePath);
+      if (entry?.cliSessionId === cliSessionId && APP_SESSION_ID.test(entry.appSessionId)) return entry.appSessionId;
     }
   }
   return "";
 };
+
+export const listDesktopSessions = (roots = desktopSessionRoots()) =>
+  roots
+    .flatMap((root) => listLocalFiles(root))
+    .map(readEntry)
+    .filter((entry) => entry && entry.cliSessionId && APP_SESSION_ID.test(entry.appSessionId));
 
 export const desktopLink = (cliSessionId, roots) => {
   const appSessionId = findDesktopSessionId(cliSessionId, roots);

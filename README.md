@@ -98,6 +98,17 @@ Un clic sur un robot ouvre une modale réduite à l'essentiel pour comprendre de
 - **Lien vers l'app** : l'app range, pour chaque session, son propre identifiant à côté de celui des hooks (dossier `claude-code-sessions` de ses données). Le serveur lit uniquement cette correspondance, sous Windows comme depuis WSL (y compris pour l'app installée depuis le Microsoft Store, dont les données sont redirigées vers `Packages\Claude_*\LocalCache`). Si la correspondance est introuvable, la modale le dit au lieu d'afficher un bouton cassé. Le navigateur peut demander une confirmation la première fois qu'il ouvre `claude://`.
 - **Sécurité** : le serveur n'écoute que sur `127.0.0.1`, n'accepte que des requêtes de lecture sur les sessions, refuse un en-tête `Host` qui n'est pas local, et ne lit que les transcripts situés dans un dossier `.claude/projects`.
 
+### Toutes les discussions
+
+L'onglet « Discussions » de la barre du haut (ou l'adresse `/#discussions`) liste toutes vos conversations Claude, pas seulement celles de la scène : celles de l'app Claude et celles des terminaux, sous Windows comme sous WSL. Le serveur les lit dans les transcripts (`~/.claude/projects`) et dans les données de l'app (titre, archivage, date). Rien n'est modifié.
+
+- **Recherche** : un ou plusieurs mots, sans tenir compte des accents ni de la casse, dans le titre, le projet, la branche, la première demande et le dernier message.
+- **Regroupement** : par projet (les dossiers de travail temporaires sont rattachés à leur projet, les conversations sans dossier sont à part), par date ou par état. Chaque groupe se replie.
+- **Filtres** : toutes, à répondre, en cours, app, terminal, archivées, avec le nombre de discussions de chaque catégorie.
+- **Épingles** : l'étoile d'une discussion la place en tête de la liste. Le choix est mémorisé dans le navigateur.
+- **Actions** : un clic ouvre la modale (contexte utilisé, dernière demande, dernière réponse). Le bouton « Ouvrir dans l'app » rouvre la conversation dans l'app Claude ; pour une conversation de terminal, « Copier la commande » copie `claude --resume`.
+- **Volume** : les 300 plus récentes sont chargées (`/api/library?limit=…` pour en demander plus, 2000 au maximum). La liste se met à jour toutes les 30 secondes.
+
 ### Limites d'usage et connecteurs
 
 La colonne de droite affiche vos limites Claude (session de 5 heures, semaine tous modèles, et un détail par modèle quand il est connu) et l'état des connecteurs que vous choisissez avec le bouton « Choisir » (le choix est mémorisé dans le navigateur). Ces deux informations ne sont pas accessibles à un programme local : elles viennent de deux fichiers lus par le serveur dans `~/.claude/eddy-office` (`usage.json` et `connectors.json`).
