@@ -9,6 +9,7 @@ export const ROOM_NAMES = {
   draft: "Brouillons",
   fix: "Atelier",
   arch: "Archives",
+  pause: "Pause",
   meet: "Salle de réunion",
 };
 
@@ -42,6 +43,7 @@ export const ROOM_LABELS = {
   draft: "Brouillons",
   fix: "Atelier",
   arch: "Archives",
+  pause: "Pause",
   meet: "Réunion",
 };
 
@@ -54,6 +56,7 @@ export const ROOM_ACTIONS = {
   draft: "Finir le brouillon.",
   fix: "Corriger la CI ou résoudre le conflit.",
   arch: "Aucune.",
+  pause: "Aucune, la conversation est terminée.",
   meet: "Aucune, les agents travaillent ensemble.",
 };
 
@@ -348,9 +351,9 @@ export const EVENTS = [
     label: "Conversation « Portail » terminée",
     type: "move",
     key: "portail",
-    room: "arch",
-    note: "Plus de question en attente : la conversation est archivée.",
-    log: "« Portail » est terminée : elle va aux archives.",
+    room: "pause",
+    note: "Plus de question en attente : elle fait une pause avant de passer aux archives.",
+    log: "« Portail » est terminée : elle fait une pause avant les archives.",
   },
   {
     label: "Vous compactez « Migration API » (/compact)",

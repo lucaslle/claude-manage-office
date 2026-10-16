@@ -14,9 +14,9 @@ export const BRANDS = [
     scene: {
       background: ["#e3e9f1", "#2a3544"],
       plaster: "#f5f6f8",
-      frame: "#7d8794",
+      frame: "#4a5568",
       ground: "#c2c9d3",
-      plinth: "#3a4049",
+      plinth: "#1f2937",
       floorTint: "#ffffff",
       glazing: "#4f8fc4",
       light: 1,
