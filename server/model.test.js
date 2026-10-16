@@ -154,14 +154,14 @@ describe("discussion terminée", () => {
     assert.equal(build(session, { restMs: 0 }).room, "arch");
   });
 
-  it("n'a que six places : les plus récentes d'abord, les autres vont aux archives, et l'open space reste libre", () => {
+  it("n'a que neuf places : les plus récentes d'abord, les autres vont aux archives, et l'open space reste libre", () => {
     const minutes = (count) => now - count * 60 * 1000;
     const sessions = [
       makeSession({ sessionId: "w1", state: "working", updatedAt: now }),
-      ...[50, 5, 30, 10, 20, 40, 15, 25, 60].map((age) => makeSession({ sessionId: `t${age}`, state: "idle", updatedAt: minutes(age) })),
+      ...[5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90, 100].map((age) => makeSession({ sessionId: `t${age}`, state: "idle", updatedAt: minutes(age) })),
     ];
     const rooms = Object.fromEntries(buildCharacters({ sessions, mergeRequests: [], now }).map((character) => [character.sessionId, character.room]));
-    assert.deepEqual(rooms, { w1: "open", t5: "pause", t10: "pause", t15: "pause", t20: "pause", t25: "pause", t30: "pause", t40: "arch", t50: "arch", t60: "arch" });
+    assert.deepEqual(rooms, { w1: "open", ...Object.fromEntries([5, 10, 15, 20, 25, 30, 35, 40, 45].map((age) => [`t${age}`, "pause"])), ...Object.fromEntries([50, 55, 60, 65, 70, 75, 80, 90, 100].map((age) => [`t${age}`, "arch"])) });
   });
 
   it("ne met pas en pause une discussion qui travaille, a une MR, une review ou une question", () => {

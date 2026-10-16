@@ -34,6 +34,37 @@ GRID.forEach((rowRooms, rowIndex) => {
   });
 });
 
+// La salle de pause est un salon : deux rangées de trois canapés face à face autour de petites tables, plus une rangée
+// devant, tournée vers la caméra. Un canapé par place, hors des deux couloirs de passage et du bar à café.
+export const PAUSE_COLUMNS = [-1.2, 1.4, 3.9];
+const PAUSE_SEAT_OFFSET = 0.15;
+export const PAUSE_SOFAS = [
+  ...PAUSE_COLUMNS.map((x) => ({ x, z: -2.9, ry: 0 })),
+  ...PAUSE_COLUMNS.map((x) => ({ x, z: -0.3, ry: Math.PI })),
+  ...PAUSE_COLUMNS.map((x) => ({ x, z: 4.3, ry: 0 })),
+];
+
+// Les premiers arrivés s'installent loin les uns des autres : on range les places en partant de la plus éloignée de celles déjà prises.
+const farthestFirst = (points) => {
+  const remaining = points.slice(1);
+  const ordered = [points[0]];
+  while (remaining.length > 0) {
+    let best = 0;
+    let bestDistance = -1;
+    remaining.forEach((point, index) => {
+      const nearest = Math.min(...ordered.map((taken) => Math.hypot(point.x - taken.x, point.z - taken.z)));
+      if (nearest > bestDistance) {
+        bestDistance = nearest;
+        best = index;
+      }
+    });
+    ordered.push(remaining.splice(best, 1)[0]);
+  }
+  return ordered;
+};
+
+const PAUSE_SLOTS = farthestFirst(PAUSE_SOFAS).map(({ x, z, ry }) => ({ x, z: z + (ry === 0 ? PAUSE_SEAT_OFFSET : -PAUSE_SEAT_OFFSET), ry, pose: "meet" }));
+
 // Les places restent hors des deux bandes de passage de chaque pièce (z entre 2.2 et 3.8, x entre -3.8 et -2.2).
 export const SLOTS = {
   acc: [
@@ -80,14 +111,7 @@ export const SLOTS = {
     { x: 2.6, z: 0.1, ry: 0.35, pose: "sleep" },
     { x: 3.9, z: -0.9, ry: 0.35, pose: "sleep" },
   ],
-  pause: [
-    { x: -1.15, z: -2.6, ry: Math.PI / 2, pose: "meet" },
-    { x: -1.15, z: -0.8, ry: Math.PI / 2, pose: "meet" },
-    { x: 4.05, z: -2.6, ry: -Math.PI / 2, pose: "meet" },
-    { x: 4.05, z: -0.8, ry: -Math.PI / 2, pose: "meet" },
-    { x: 2.5, z: -3.2, ry: Math.PI, pose: "stand" },
-    { x: 3.7, z: -3.2, ry: Math.PI, pose: "stand" },
-  ],
+  pause: PAUSE_SLOTS,
   bug: [
     { x: -0.9, z: -2.15, ry: Math.PI, pose: "type" },
     { x: 2.4, z: -2.15, ry: Math.PI, pose: "type" },

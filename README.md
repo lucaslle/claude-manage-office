@@ -16,7 +16,7 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 | Relecture | MR ouverte, en attente de relecture ou d'approbation, MR marquée Draft ou qui dépend d'une autre MR encore ouverte (la raison est indiquée sur sa fiche), et conversation où vous faites une review (voir ci-dessous) |
 | Merge | MR mergeable, sans blocage |
 | Atelier | Pipeline en échec, conflit ou rebase nécessaire |
-| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : salle à part, sur parquet, avec deux coins canapé et un bar à café (6 places, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`). Elle est devant la salle de merge, à droite |
+| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : salle à part, sur parquet, avec neuf canapés (9 places, une par canapé, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`), des petites tables et un bar à café au fond. Elle est devant la salle de merge, à droite |
 | Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause |
 | Salle de réunion | Une session a lancé plusieurs agents : elle s'y installe avec eux |
 
