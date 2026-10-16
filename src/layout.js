@@ -38,6 +38,8 @@ GRID.forEach((rowRooms, rowIndex) => {
 // devant, tournée vers la caméra. Un canapé par place, hors des deux couloirs de passage et du bar à café.
 export const PAUSE_COLUMNS = [-1.2, 1.4, 3.9];
 const PAUSE_SEAT_OFFSET = 0.15;
+// Les coussins des canapés sont plus hauts que l'assise d'une chaise : le robot est surélevé pour que ses cuisses reposent dessus.
+const PAUSE_SEAT_LIFT = 0.2;
 export const PAUSE_SOFAS = [
   ...PAUSE_COLUMNS.map((x) => ({ x, z: -2.9, ry: 0 })),
   ...PAUSE_COLUMNS.map((x) => ({ x, z: -0.3, ry: Math.PI })),
@@ -63,7 +65,7 @@ const farthestFirst = (points) => {
   return ordered;
 };
 
-const PAUSE_SLOTS = farthestFirst(PAUSE_SOFAS).map(({ x, z, ry }) => ({ x, z: z + (ry === 0 ? PAUSE_SEAT_OFFSET : -PAUSE_SEAT_OFFSET), ry, pose: "meet" }));
+const PAUSE_SLOTS = farthestFirst(PAUSE_SOFAS).map(({ x, z, ry }) => ({ x, z: z + (ry === 0 ? PAUSE_SEAT_OFFSET : -PAUSE_SEAT_OFFSET), ry, pose: "meet", lift: PAUSE_SEAT_LIFT }));
 
 // Les places restent hors des deux bandes de passage de chaque pièce (z entre 2.2 et 3.8, x entre -3.8 et -2.2).
 export const SLOTS = {

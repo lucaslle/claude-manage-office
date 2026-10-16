@@ -306,7 +306,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     character.room = roomId;
     character.slot = slotIndex;
     character.pose = slot.pose;
-    character.root.position.set(position.x, 0, position.z);
+    character.root.position.set(position.x, slot.lift ?? 0, position.z);
     character.root.rotation.y = slot.ry;
     character.celebrate = 0;
     playClip(character, baseClip(character), { once: SEATED_POSES.has(character.pose), fade: 0.35 });
@@ -325,6 +325,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
 
   const startWalking = (character) => {
     character.pose = "walk";
+    character.root.position.y = 0;
     setBubble(character, null);
     refreshLabelHeight(character);
     playClip(character, baseClip(character), { timeScale: 1.15, fade: 0.25 });
@@ -378,6 +379,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     character.path = [...route, { x: exitDoor.x, z: exitDoor.z }, { x: exitDoor.x - EXIT_OUTSIDE_DISTANCE, z: exitDoor.z }];
     character.speed = STORM_SPEED_RATIO;
     character.pose = "walk";
+    character.root.position.y = 0;
     refreshLabelHeight(character);
     playClip(character, "Storm", { fade: 0.2 });
   };
@@ -398,6 +400,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     character.moved = true;
     character.storm = { fume: FUME_SECONDS };
     character.pose = "stand";
+    character.root.position.y = 0;
     refreshLabelHeight(character);
     setBubble(character, "💢");
     character.bubbleInner.classList.add("bubble--angry");

@@ -57,7 +57,7 @@ const props = ({ box, placed, materials: M, base, accent }) => {
       box(group, length, 0.28, 0.95, M.oak, 0, 0.14, 0);
       box(group, length - 0.12, 0.2, 0.88, tone, 0.04, 0.38, 0);
       box(group, 0.5, 0.14, 0.7, M.white, -length / 2 + 0.4, 0.55, 0);
-      box(group, 0.1, 0.6, 0.95, M.oak, -length / 2 + 0.05, 0.3, 0);
+      box(group, 0.12, 0.6, 0.97, M.oak, -length / 2 + 0.05, 0.3, 0);
       return group;
     },
 
