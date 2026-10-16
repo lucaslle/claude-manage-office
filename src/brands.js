@@ -1,6 +1,8 @@
 // Thèmes d'entreprise. L'interface est colorée par les variables CSS de style.css (attribut data-brand) ;
 // ici, seule la scène 3D est décrite. Une valeur [clair, sombre] change avec le mode clair ou sombre.
 // mode : "auto" suit le choix clair/sombre de l'utilisateur, "dark" impose le mode sombre.
+// style : l'univers de la scène (voir styles/). Sans style, c'est le bureau tech d'origine ; les autres thèmes
+// ne changent que les couleurs, tandis qu'un style change aussi les textures, le mobilier et le décor.
 
 export const DEFAULT_BRAND_ID = "eddy";
 
@@ -88,6 +90,96 @@ export const BRANDS = [
       floorTint: "#e6f3e8",
       glazing: "#4fa87a",
       light: 1,
+    },
+  },
+  {
+    id: "minecraft",
+    label: "Minecraft",
+    hint: "Cubes et pixels, clair ou sombre",
+    mode: "auto",
+    style: "minecraft",
+    swatch: ["#5da03c", "#8b5a2b"],
+    scene: {
+      background: ["#8ec5ff", "#0b1630"],
+      plaster: "#ffffff",
+      frame: "#ffffff",
+      ground: "#ffffff",
+      plinth: "#c8c8c8",
+      floorTint: "#ffffff",
+      glazing: "#9ad7ff",
+      light: [1.05, 0.75],
+    },
+  },
+  {
+    id: "among-us",
+    label: "Among Us",
+    hint: "Vaisseau spatial, sombre",
+    mode: "dark",
+    style: "amongus",
+    swatch: ["#c51111", "#0b1220"],
+    scene: {
+      background: "#04060c",
+      plaster: "#ffffff",
+      frame: "#4b5668",
+      ground: "#0e1320",
+      plinth: "#d9a81c",
+      floorTint: "#ffffff",
+      glazing: "#6fe3ff",
+      light: 0.9,
+    },
+  },
+  {
+    id: "chef",
+    label: "Chef",
+    hint: "Cuisine de restaurant, clair ou sombre",
+    mode: "auto",
+    style: "chef",
+    swatch: ["#c62828", "#f6efe0"],
+    scene: {
+      background: ["#f1e6d6", "#2a211b"],
+      plaster: "#ffffff",
+      frame: "#b9c0c8",
+      ground: ["#d9d2c7", "#4a423a"],
+      plinth: "#8a1f1f",
+      floorTint: "#ffffff",
+      glazing: "#ffd9a0",
+      light: 1,
+    },
+  },
+  {
+    id: "cyberpunk",
+    label: "Cyberpunk",
+    hint: "Néons et ville de nuit, sombre",
+    mode: "dark",
+    style: "cyber",
+    swatch: ["#ff2bd6", "#07050f"],
+    scene: {
+      background: "#06040d",
+      plaster: "#ffffff",
+      frame: "#ff2bd6",
+      ground: "#0b0916",
+      plinth: "#00b8d4",
+      floorTint: "#ffffff",
+      glazing: "#00e5ff",
+      light: 0.6,
+    },
+  },
+  {
+    id: "lego",
+    label: "Lego",
+    hint: "Briques et minifigs, clair ou sombre",
+    mode: "auto",
+    style: "lego",
+    swatch: ["#f2c200", "#d01f1f"],
+    scene: {
+      background: ["#bfe4ff", "#1b2a44"],
+      plaster: "#ffffff",
+      frame: "#d01f1f",
+      ground: "#ffffff",
+      plinth: "#ffffff",
+      floorTint: "#ffffff",
+      glazing: "#7fc8ff",
+      light: [1.05, 0.8],
     },
   },
 ];

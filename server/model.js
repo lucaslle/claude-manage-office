@@ -1,6 +1,7 @@
 const ROOM_ACTIONS = {
   acc: "Répondre à Claude.",
   open: "Aucune, Claude travaille.",
+  bug: "Aucune, Claude corrige le bug.",
   rev: "Relire la MR.",
   mrg: "Merger la MR.",
   wait: "Attendre la MR dont elle dépend.",
@@ -55,6 +56,14 @@ export const activeAgents = (session, now, maxAgeMs = DEFAULT_AGENT_MAX_AGE_MS) 
 
 const isReview = (session) => session.activity === "review";
 
+// Une discussion qui corrige un bug travaille dans la salle des bugs plutôt qu'à l'open space.
+// Le titre et le nom de branche suffisent : le dernier message de Claude parle trop souvent de « fix » sans que ce soit le sujet.
+const BUG_PATTERN = /(?<![a-z])(bugs?|bugfix(es)?|hotfix(es)?|fix(es|ed)?|debug(ger|ging)?|correctifs?|corrig[a-z]*|erreurs?|crash(es)?|regressions?|anomalies?|plantages?|defauts?|dysfonctionnements?)(?![a-z])/;
+
+const stripAccents = (text) => text.normalize("NFD").replace(/\p{M}/gu, "");
+
+export const isBugFix = (session) => BUG_PATTERN.test(stripAccents(`${session.title ?? ""} ${(session.branch ?? "").replace(/[/_-]+/g, " ")}`).toLowerCase());
+
 // Une discussion terminée sans MR ni question fait une pause avant d'aller aux archives.
 export const isResting = (session, { linkedMergeRequest, agentCount, now, restMs }) =>
   restMs > 0 && !linkedMergeRequest && agentCount === 0 && session.state === "idle" && !isReview(session) && now - session.updatedAt < restMs;
@@ -63,7 +72,7 @@ const sessionRoom = (session, linkedMergeRequest, classification, agentCount, re
   if (session.state === "needs_reply") return "acc";
   if (isReview(session)) return "rev";
   if (agentCount >= MEETING_MIN_AGENTS) return "meet";
-  if (agentCount > 0 || session.state === "working") return "open";
+  if (agentCount > 0 || session.state === "working") return isBugFix(session) ? "bug" : "open";
   if (linkedMergeRequest) return classification.room;
   return resting ? "pause" : "arch";
 };
@@ -75,7 +84,7 @@ const sessionWhy = (session, linkedMergeRequest, classification, agentCount, res
   if (isReview(session)) return session.state === "working" ? "Vous avez demandé une review : Claude la fait, la conversation est en relecture." : "Vous avez demandé une review : la conversation reste en relecture.";
   if (agentCount >= MEETING_MIN_AGENTS) return `Claude a lancé ${agentCount} agents : ils se réunissent en salle de réunion.`;
   if (agentCount > 0) return "Claude a lancé un agent et attend son résultat.";
-  if (session.state === "working") return "Claude travaille sur la tâche en cours.";
+  if (session.state === "working") return isBugFix(session) ? "Claude corrige un bug : la discussion travaille dans la salle des bugs." : "Claude travaille sur la tâche en cours.";
   if (linkedMergeRequest) return classification.reason;
   if (resting) return "Terminée, sans question ni MR : elle fait une pause avant de passer aux archives.";
   return "Aucune question en attente, aucune MR ouverte.";
@@ -131,7 +140,7 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
       compacting: isCompacting(session, now),
       compactedAt: Number(session.compactedAt) || 0,
     });
-    const agentRoom = room === "rev" && isReview(session) ? "rev" : agents.length >= MEETING_MIN_AGENTS ? "meet" : "open";
+    const agentRoom = room === "rev" && isReview(session) ? "rev" : agents.length >= MEETING_MIN_AGENTS ? "meet" : room === "bug" ? "bug" : "open";
     agents.forEach((agent, index) => {
       const label = agent.label || `Agent ${index + 1}`;
       characters.push({
@@ -141,7 +150,7 @@ export const buildCharacters = ({ sessions, mergeRequests, now = Date.now(), age
         room: agentRoom,
         name: truncate(label, AGENT_NAME_LENGTH),
         title: `Agent : ${label}`,
-        why: `Agent lancé par « ${sessionName(session)} »${agentRoom === "meet" ? ", en réunion avec les autres agents" : agentRoom === "rev" ? ", pour la review" : ""}.`,
+        why: `Agent lancé par « ${sessionName(session)} »${agentRoom === "meet" ? ", en réunion avec les autres agents" : agentRoom === "rev" ? ", pour la review" : agentRoom === "bug" ? ", pour corriger le bug" : ""}.`,
         mr: mergeRequestLine,
         action: agentRoom === "rev" ? REVIEW_ACTION : ROOM_ACTIONS[agentRoom],
         url: "",

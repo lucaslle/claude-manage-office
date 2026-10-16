@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, GATE_LOCAL, roomCenters } from "./layout.js";
+import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, GATE_LOCAL, roomCenters, roomAt, columnAt, rowAt, columnToX, rowToZ } from "./layout.js";
 import { buildRobotModel } from "./robot-model.js";
 
 const WALK_SPEED = 2.8;
@@ -69,27 +69,30 @@ const wrapAngle = (angle) => {
   return wrapped;
 };
 
-const gridIndex = (value) => Math.min(2, Math.max(0, Math.floor((value + 1.5 * ROOM_SIZE) / ROOM_SIZE)));
-
-const buildRoute = (fromX, fromZ, toX, toZ) => {
+export const buildRoute = (fromX, fromZ, toX, toZ) => {
   const points = [];
-  let column = gridIndex(fromX);
-  let row = gridIndex(fromZ);
-  const targetColumn = gridIndex(toX);
-  const targetRow = gridIndex(toZ);
-  while (column !== targetColumn) {
-    const step = targetColumn > column ? 1 : -1;
-    const borderX = (column - 1) * ROOM_SIZE + (step * ROOM_SIZE) / 2;
-    const doorZ = (row - 1) * ROOM_SIZE + DOOR_ALONG;
-    points.push({ x: borderX - step * APPROACH_DISTANCE, z: doorZ }, { x: borderX, z: doorZ }, { x: borderX + step * APPROACH_DISTANCE, z: doorZ });
-    column += step;
-  }
-  while (row !== targetRow) {
-    const step = targetRow > row ? 1 : -1;
-    const borderZ = (row - 1) * ROOM_SIZE + (step * ROOM_SIZE) / 2;
-    const doorX = (column - 1) * ROOM_SIZE + DOOR_ACROSS;
-    points.push({ x: doorX, z: borderZ - step * APPROACH_DISTANCE }, { x: doorX, z: borderZ }, { x: doorX, z: borderZ + step * APPROACH_DISTANCE });
-    row += step;
+  let column = columnAt(fromX);
+  let row = rowAt(fromZ);
+  const targetColumn = columnAt(toX);
+  const targetRow = rowAt(toZ);
+  const columnStep = () => (targetColumn > column ? 1 : -1);
+  const rowStep = () => (targetRow > row ? 1 : -1);
+  while (column !== targetColumn || row !== targetRow) {
+    if (column !== targetColumn && roomAt(column + columnStep(), row)) {
+      const step = columnStep();
+      const borderX = columnToX(column) + (step * ROOM_SIZE) / 2;
+      const doorZ = rowToZ(row) + DOOR_ALONG;
+      points.push({ x: borderX - step * APPROACH_DISTANCE, z: doorZ }, { x: borderX, z: doorZ }, { x: borderX + step * APPROACH_DISTANCE, z: doorZ });
+      column += step;
+    } else if (row !== targetRow) {
+      const step = rowStep();
+      const borderZ = rowToZ(row) + (step * ROOM_SIZE) / 2;
+      const doorX = columnToX(column) + DOOR_ACROSS;
+      points.push({ x: doorX, z: borderZ - step * APPROACH_DISTANCE }, { x: doorX, z: borderZ }, { x: doorX, z: borderZ + step * APPROACH_DISTANCE });
+      row += step;
+    } else {
+      break;
+    }
   }
   points.push({ x: toX, z: toZ });
   return points;

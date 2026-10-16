@@ -3,6 +3,7 @@ import { createScore, dayKey } from "../shared/scoring.js";
 export const ROOM_NAMES = {
   acc: "Accueil",
   open: "Open space",
+  bug: "Salle des bugs",
   rev: "Salle de relecture",
   mrg: "Salle de merge",
   wait: "Salle d'attente",
@@ -37,6 +38,7 @@ export const buildDemoScore = (now = Date.now()) => ({
 export const ROOM_LABELS = {
   acc: "Accueil",
   open: "Open space",
+  bug: "Bugs",
   rev: "Relecture",
   mrg: "Merge",
   wait: "Attente",
@@ -50,6 +52,7 @@ export const ROOM_LABELS = {
 export const ROOM_ACTIONS = {
   acc: "Répondre à Claude.",
   open: "Aucune, Claude travaille.",
+  bug: "Aucune, Claude corrige le bug.",
   rev: "Relire la MR.",
   mrg: "Merger la MR.",
   wait: "Attendre la MR dont elle dépend.",
@@ -104,6 +107,17 @@ export const CHARACTERS = [
     mr: "Selon la branche",
     action: "Rien à faire, Claude travaille.",
     tint: 0xb06ad8,
+  },
+  {
+    key: "bugfix",
+    kind: "robot",
+    room: "bug",
+    name: "Bug connexion",
+    title: "Corriger le bug de connexion",
+    why: "Le titre parle d'un bug : Claude le corrige dans la salle des bugs, à l'écart de l'open space.",
+    mr: "Branche fix/login-expire",
+    action: "Rien à faire, Claude corrige le bug.",
+    tint: 0xe2674a,
   },
   {
     key: "secu",
@@ -346,6 +360,14 @@ export const EVENTS = [
     room: "rev",
     note: "Le brouillon est marqué prêt à relire.",
     log: "!415 n'est plus un brouillon : salle de relecture.",
+  },
+  {
+    label: "Le bug de connexion est corrigé",
+    type: "move",
+    key: "bugfix",
+    room: "pause",
+    note: "Le correctif est poussé et aucune question n'est en attente : elle fait une pause avant de passer aux archives.",
+    log: "« Bug connexion » est corrigé : le robot quitte la salle des bugs pour la zone Pause.",
   },
   {
     label: "Conversation « Portail » terminée",

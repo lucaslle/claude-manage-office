@@ -5,16 +5,29 @@ export const DOOR_ACROSS = -3.0;
 
 // La relecture est au centre : elle touche l'open space, l'atelier, la salle de merge et les archives,
 // les quatre pièces avec lesquelles sessions et MR échangent le plus. Accueil, open space et réunion
-// forment la rangée du fond ; brouillons, merge et attente la rangée de devant.
+// forment la rangée du fond ; brouillons, merge et attente la rangée de devant. La salle des bugs est
+// une annexe au bout de la rangée de devant, à côté de l'attente. null marque une case sans pièce : ici
+// la cour, derrière l'annexe.
 export const GRID = [
-  ["acc", "open", "meet"],
-  ["fix", "rev", "arch"],
-  ["draft", "mrg", "wait"],
+  ["acc", "open", "meet", null],
+  ["fix", "rev", "arch", null],
+  ["draft", "mrg", "wait", "bug"],
 ];
+
+export const COLUMNS = GRID[0].length;
+export const ROWS = GRID.length;
+
+// La case (colonne 1, rangée 1), la relecture, est à l'origine.
+export const roomAt = (column, row) => GRID[row]?.[column] ?? null;
+export const columnToX = (column) => (column - 1) * ROOM_SIZE;
+export const rowToZ = (row) => (row - 1) * ROOM_SIZE;
+export const columnAt = (x) => Math.min(COLUMNS - 1, Math.max(0, Math.floor((x + 1.5 * ROOM_SIZE) / ROOM_SIZE)));
+export const rowAt = (z) => Math.min(ROWS - 1, Math.max(0, Math.floor((z + 1.5 * ROOM_SIZE) / ROOM_SIZE)));
 
 export const roomCenters = {};
 GRID.forEach((rowRooms, rowIndex) => {
   rowRooms.forEach((roomId, columnIndex) => {
+    if (!roomId) return;
     roomCenters[roomId] = {
       x: (columnIndex - 1) * ROOM_SIZE,
       z: (rowIndex - 1) * ROOM_SIZE,
@@ -90,6 +103,12 @@ export const SLOTS = {
     { x: 4.05, z: -0.8, ry: -Math.PI / 2, pose: "meet" },
     { x: 2.5, z: -3.2, ry: Math.PI, pose: "stand" },
     { x: 3.7, z: -3.2, ry: Math.PI, pose: "stand" },
+  ],
+  bug: [
+    { x: -0.9, z: -2.15, ry: Math.PI, pose: "type" },
+    { x: 2.4, z: -2.15, ry: Math.PI, pose: "type" },
+    { x: -0.9, z: 1.05, ry: Math.PI, pose: "type" },
+    { x: 2.4, z: 1.05, ry: Math.PI, pose: "type" },
   ],
   meet: [
     { x: -0.4, z: -1.5, ry: 0, pose: "meet" },

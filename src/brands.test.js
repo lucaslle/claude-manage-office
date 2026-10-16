@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BRANDS, DEFAULT_BRAND_ID, findBrand, scenePalette } from "./brands.js";
+import { GRID } from "./layout.js";
+import { OFFICE_STYLE, loadStyle } from "./styles/index.js";
 
 const SCENE_KEYS = ["background", "plaster", "frame", "ground", "plinth", "floorTint", "glazing", "light"];
 
@@ -32,5 +34,37 @@ describe("thèmes d'entreprise", () => {
 
   it("ne propose que des modes connus", () => {
     BRANDS.forEach((brand) => assert.ok(["auto", "dark"].includes(brand.mode), brand.id));
+  });
+
+  it("propose les univers Minecraft, Among Us, Chef, Cyberpunk et Lego", () => {
+    ["minecraft", "among-us", "chef", "cyberpunk", "lego"].forEach((id) => assert.equal(findBrand(id).id, id));
+  });
+});
+
+describe("styles de scène", () => {
+  const rooms = GRID.flat().filter(Boolean);
+
+  it("charge le style de chaque thème, et le bureau d'origine quand il n'y en a pas", async () => {
+    assert.equal(await loadStyle(undefined), OFFICE_STYLE);
+    for (const brand of BRANDS.filter((entry) => entry.style)) {
+      const style = await loadStyle(brand.style);
+      assert.equal(style.id, brand.style, brand.id);
+    }
+  });
+
+  it("ne décrit que des pièces qui existent", async () => {
+    for (const brand of BRANDS.filter((entry) => entry.style)) {
+      const style = await loadStyle(brand.style);
+      Object.keys(style.floors ?? {}).forEach((roomId) => assert.ok(rooms.includes(roomId), `${brand.style} ${roomId}`));
+    }
+  });
+
+  it("donne à chaque style les palettes qu'il utilise en entier", async () => {
+    for (const brand of BRANDS.filter((entry) => entry.style)) {
+      const style = await loadStyle(brand.style);
+      ["doorColors", "noteColors", "ledColors"].forEach((key) => {
+        if (style[key]) assert.ok(style[key].length >= 3, `${brand.style} ${key}`);
+      });
+    }
   });
 });

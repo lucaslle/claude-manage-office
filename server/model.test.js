@@ -253,3 +253,44 @@ describe("compactage", () => {
     assert.equal(stale.compactedAt, 0);
   });
 });
+
+describe("salle des bugs", () => {
+  const now = 1_000_000_000;
+  const agent = (id) => ({ id, label: `Agent ${id}`, startedAt: now - 1000 });
+  const room = (overrides) => buildCharacters({ sessions: [makeSession({ updatedAt: now, ...overrides })], mergeRequests: [], now })[0].room;
+
+  it("envoie à la salle des bugs une discussion de correction qui travaille", () => {
+    assert.equal(room({ state: "working", title: "Corriger le bug de connexion" }), "bug");
+    assert.equal(room({ state: "working", title: "Crash au démarrage" }), "bug");
+    assert.equal(room({ state: "working", title: "Régression sur le portail" }), "bug");
+  });
+
+  it("reconnaît un fix d'après le nom de branche", () => {
+    assert.equal(room({ state: "working", branch: "fix/login-page" }), "bug");
+    assert.equal(room({ state: "working", branch: "bugfix_PRJ-12" }), "bug");
+  });
+
+  it("laisse à l'open space une discussion qui ne parle pas de bug", () => {
+    assert.equal(room({ state: "working", title: "Migration de l'API" }), "open");
+    assert.equal(room({ state: "working", title: "Ajouter un prefix aux routes" }), "open");
+  });
+
+  it("garde l'accueil prioritaire quand le fix pose une question", () => {
+    assert.equal(room({ state: "needs_reply", title: "Fix du bug de login" }), "acc");
+  });
+
+  it("n'y garde pas une discussion de fix terminée", () => {
+    assert.equal(room({ state: "idle", title: "Fix du bug de login" }), "pause");
+  });
+
+  it("garde un agent seul avec sa session dans la salle des bugs", () => {
+    const session = makeSession({ state: "working", updatedAt: now, title: "Fix du bug de login", subagents: [agent("a")] });
+    const characters = buildCharacters({ sessions: [session], mergeRequests: [], now });
+    assert.deepEqual(characters.map((character) => character.room), ["bug", "bug"]);
+  });
+
+  it("préfère la salle de réunion quand plusieurs agents cherchent le bug", () => {
+    const session = makeSession({ state: "working", updatedAt: now, title: "Fix du bug de login", subagents: [agent("a"), agent("b")] });
+    assert.deepEqual(buildCharacters({ sessions: [session], mergeRequests: [], now }).map((character) => character.room), ["meet", "meet", "meet"]);
+  });
+});
