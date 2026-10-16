@@ -8,7 +8,9 @@ import { createRenderPipeline } from "./postfx.js";
 import { createUi } from "./ui.js";
 import { fetchLiveState, subscribeLive } from "./live.js";
 import { CHARACTERS } from "./data.js";
-import { initTheme, isDarkTheme } from "./theme.js";
+import { currentBrand, initTheme, isDarkTheme } from "./theme.js";
+import { scenePalette } from "./brands.js";
+import { createBrandMenu } from "./brand-menu.js";
 import { createUsagePanel } from "./usage.js";
 import { createConnectorsPanel } from "./connectors.js";
 import { createHud } from "./hud.js";
@@ -24,8 +26,10 @@ const FIT_WIDTH_FACTOR = 90;
 const MIN_HOME_DISTANCE = 54;
 const MAX_HOME_DISTANCE = 128;
 
+const HEMISPHERE_INTENSITY = 0.45;
+const SUN_INTENSITY = 1.9;
+
 const stage = document.getElementById("stage");
-const backgroundColor = () => new THREE.Color(isDarkTheme() ? "#2a3544" : "#e3e9f1");
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.shadowMap.enabled = true;
@@ -39,13 +43,20 @@ labelRenderer.domElement.className = "stage__labels";
 stage.append(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
-initTheme({
-  toggleButton: document.getElementById("theme-toggle"),
-  onChange: () => {
-    scene.background = backgroundColor();
-  },
-});
-scene.background = backgroundColor();
+let world = null;
+let lights = null;
+const applyScenePalette = () => {
+  const palette = scenePalette(currentBrand(), isDarkTheme());
+  scene.background = new THREE.Color(palette.background);
+  world?.applyPalette(palette);
+  if (lights) {
+    lights.hemisphere.intensity = HEMISPHERE_INTENSITY * palette.light;
+    lights.sun.intensity = SUN_INTENSITY * palette.light;
+  }
+};
+const theme = initTheme({ toggleButton: document.getElementById("theme-toggle"), onChange: applyScenePalette });
+createBrandMenu({ button: document.getElementById("brand-button"), menu: document.getElementById("brand-menu"), onSelect: theme.setBrand });
+applyScenePalette();
 const environmentGenerator = new THREE.PMREMGenerator(renderer);
 scene.environment = environmentGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.4;
@@ -73,8 +84,9 @@ const applyHomeView = () => {
   controls.update();
 };
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa4b2, 0.45));
-const sun = new THREE.DirectionalLight(0xfff4e5, 1.9);
+const hemisphere = new THREE.HemisphereLight(0xffffff, 0x9aa4b2, HEMISPHERE_INTENSITY);
+scene.add(hemisphere);
+const sun = new THREE.DirectionalLight(0xfff4e5, SUN_INTENSITY);
 sun.position.set(-16, 36, 24);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -87,6 +99,8 @@ sun.shadow.camera.far = 110;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
 scene.add(sun);
+lights = { hemisphere, sun };
+applyScenePalette();
 
 const pipeline = createRenderPipeline({ renderer, scene, camera, container: stage });
 
@@ -103,7 +117,9 @@ const resize = () => {
 new ResizeObserver(resize).observe(stage);
 resize();
 
-const [world, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
+const [builtWorld, models] = await Promise.all([buildWorld(scene), loadCharacterModels()]);
+world = builtWorld;
+applyScenePalette();
 const COMPACT_DUST = 18;
 const crowd = createCharacters({
   scene,

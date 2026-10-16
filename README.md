@@ -106,6 +106,20 @@ La colonne de droite affiche vos limites Claude (session de 5 heures, semaine to
 - **Limites et connecteurs, à la demande** : la commande `/eddy-snapshot` (dossier `.claude/commands`) demande à une session Claude de lire ses connecteurs et ses limites, puis de les écrire dans les deux fichiers. Les données affichent leur ancienneté, et passent en orange quand elles sont trop vieilles.
 - **Limites et connecteurs, toutes les 10 minutes** : une tâche planifiée de l'app Claude (`eddy-refresh-usage-connecteurs`, section « Planifié » de la barre latérale) refait la même mise à jour toutes les 10 minutes. Elle ne tourne que lorsque l'app est ouverte. Chaque exécution est une petite session qui consomme un peu de votre usage ; son message commence par `[eddy-refresh]`, ce qui la fait masquer par le tableau de bord. Pour l'arrêter ou changer la fréquence, modifiez ou désactivez la tâche dans l'app. Elle contient le chemin du projet : si vous le déplacez, mettez-le à jour.
 
+### Thèmes d'entreprise
+
+Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs de toute l'application : interface, murs, sols et éclairage de la scène 3D. Le choix est mémorisé dans le navigateur.
+
+| Thème | Style |
+| --- | --- |
+| Eddy (défaut) | Bleu, clair ou sombre |
+| Noir et rouge | Toujours sombre, accent rouge, plinthe rouge |
+| Marine et or | Toujours sombre, accent doré, cadres dorés |
+| Terracotta | Orange chaud, clair ou sombre |
+| Vert forêt | Vert, clair ou sombre |
+
+Les thèmes « toujours sombres » désactivent la lune, qui sert aux autres à basculer entre clair et sombre. Pour ajouter un thème, ajoutez ses couleurs de scène dans `src/brands.js` et ses variables dans `src/style.css` (bloc `:root[data-brand="…"]`).
+
 ### Variables d'environnement
 
 | Variable | Défaut | Rôle |

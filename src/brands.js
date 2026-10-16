@@ -1,0 +1,100 @@
+// Thèmes d'entreprise. L'interface est colorée par les variables CSS de style.css (attribut data-brand) ;
+// ici, seule la scène 3D est décrite. Une valeur [clair, sombre] change avec le mode clair ou sombre.
+// mode : "auto" suit le choix clair/sombre de l'utilisateur, "dark" impose le mode sombre.
+
+export const DEFAULT_BRAND_ID = "eddy";
+
+export const BRANDS = [
+  {
+    id: "eddy",
+    label: "Eddy",
+    hint: "Bleu, clair ou sombre",
+    mode: "auto",
+    swatch: ["#3566f0", "#e7edff"],
+    scene: {
+      background: ["#e3e9f1", "#2a3544"],
+      plaster: "#f5f6f8",
+      frame: "#7d8794",
+      ground: "#c2c9d3",
+      plinth: "#3a4049",
+      floorTint: "#ffffff",
+      glazing: "#4f8fc4",
+      light: 1,
+    },
+  },
+  {
+    id: "noir-rouge",
+    label: "Noir et rouge",
+    hint: "Sombre, accent rouge",
+    mode: "dark",
+    swatch: ["#e5322d", "#0b0b0e"],
+    scene: {
+      background: "#0b0b0e",
+      plaster: "#2b2b31",
+      frame: "#5a5a63",
+      ground: "#18181c",
+      plinth: "#c4231f",
+      floorTint: "#6a6a72",
+      glazing: "#9a1f1c",
+      light: 0.8,
+    },
+  },
+  {
+    id: "marine-or",
+    label: "Marine et or",
+    hint: "Sombre, accent doré",
+    mode: "dark",
+    swatch: ["#d4a73a", "#0d1a33"],
+    scene: {
+      background: "#0b1730",
+      plaster: "#26365c",
+      frame: "#b8913a",
+      ground: "#142340",
+      plinth: "#c9a24a",
+      floorTint: "#6b7ca6",
+      glazing: "#2f5099",
+      light: 0.85,
+    },
+  },
+  {
+    id: "terracotta",
+    label: "Terracotta",
+    hint: "Orange chaud, clair ou sombre",
+    mode: "auto",
+    swatch: ["#c4572f", "#f7f2ea"],
+    scene: {
+      background: ["#efe5d8", "#2b2420"],
+      plaster: "#f8f1e7",
+      frame: "#a07a5a",
+      ground: "#d2c5b4",
+      plinth: "#4a3a30",
+      floorTint: "#fff0e0",
+      glazing: "#c9824f",
+      light: 1,
+    },
+  },
+  {
+    id: "foret",
+    label: "Vert forêt",
+    hint: "Vert, clair ou sombre",
+    mode: "auto",
+    swatch: ["#1f8a5b", "#eef4f0"],
+    scene: {
+      background: ["#e0ece4", "#1f2d27"],
+      plaster: "#f3f8f4",
+      frame: "#6f8a7c",
+      ground: "#c3d1c8",
+      plinth: "#2f4038",
+      floorTint: "#e6f3e8",
+      glazing: "#4fa87a",
+      light: 1,
+    },
+  },
+];
+
+export const findBrand = (id) => BRANDS.find((brand) => brand.id === id) ?? BRANDS.find((brand) => brand.id === DEFAULT_BRAND_ID);
+
+const pick = (value, dark) => (Array.isArray(value) ? value[dark ? 1 : 0] : value);
+
+export const scenePalette = (brand, dark) =>
+  Object.fromEntries(Object.entries(brand.scene).map(([name, value]) => [name, pick(value, dark)]));
