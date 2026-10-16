@@ -4,10 +4,12 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "start": "node scripts/start.mjs",
+    "demo": "vite",
     "dev": "vite",
     "live": "node server/index.js",
     "build": "vite build",
-    "start": "vite build && node server/index.js --production",
+    "start:prod": "vite build && node server/index.js --production",
     "test": "node --test \"server/*.test.js\" \"hooks/*.test.js\" \"shared/*.test.js\" \"src/*.test.js\"",
     "hooks:install": "node hooks/install.mjs",
     "hooks:remove": "node hooks/install.mjs --remove",

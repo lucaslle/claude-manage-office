@@ -235,7 +235,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     liveMode = false;
     demoControls.hidden = false;
     eventsPanel.hidden = false;
-    setSourceStatus("Mode démo : serveur local non joignable (npm run live)", true);
+    setSourceStatus("Mode démo : serveur local non joignable (npm start)", true);
     usagePanel.render(buildDemoUsage());
     connectorsPanel.render({ snapshot: buildDemoConnectors(), sources: DEMO_SOURCES, demo: true });
     hud.update(currentDemoSpecs);

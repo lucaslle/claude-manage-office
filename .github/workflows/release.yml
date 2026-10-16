@@ -23,7 +23,7 @@ jobs:
       - name: Package the application
         run: |
           mkdir -p package
-          cp -r dist server shared hooks .claude package.json package-lock.json README.md .env.example package/
+          cp -r dist server shared hooks scripts .claude package.json package-lock.json README.md .env.example lancer.cmd lancer.sh package/
           (cd package && zip -qr "../claude-manage-office-${GITHUB_REF_NAME}.zip" .)
       - name: Publish the GitHub release
         env:

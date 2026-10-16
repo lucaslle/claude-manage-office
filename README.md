@@ -44,30 +44,37 @@ GitLab (API, jeton personnel) ────────────────�
 
 ## Démarrage rapide
 
-Prérequis : Node.js 22 ou plus.
+Prérequis : [Node.js](https://nodejs.org) 22 ou plus. Rien d'autre.
 
 ```bash
-npm install
-npm run dev
+npm start
 ```
 
-Cela ouvre le **mode démo** sur http://localhost:5173 : des données d'exemple et une douzaine de changements d'état à déclencher ou à regarder défiler.
+Cette seule commande installe les dépendances la première fois, crée votre fichier `.env`, démarre le serveur local et ouvre http://localhost:5174 dans le navigateur. Sans ligne de commande, double-cliquez sur `lancer.cmd` (Windows) ou lancez `./lancer.sh` (macOS, Linux, WSL). Pour l'arrêter : Ctrl+C. Si le serveur tourne déjà, la commande ouvre simplement la page.
 
-## Données en direct
+Option : `npm start -- --no-open` n'ouvre pas le navigateur.
 
-1. Copiez `.env.example` en `.env` et renseignez `GITLAB_URL` et `GITLAB_TOKEN` (jeton personnel avec la portée `read_api`).
-2. Installez les hooks dans les réglages Claude Code :
-   ```bash
-   npm run hooks:install
-   ```
-   L'installeur sauvegarde votre `settings.json`, conserve vos autres hooks et peut être annulé avec `npm run hooks:remove`. Les hooks s'appliquent aux sessions lancées après l'installation. Relancez la commande après une mise à jour qui ajoute des hooks (le compactage, par exemple) : les anciens sont remplacés.
-3. Lancez le serveur :
-   ```bash
-   npm run live
-   ```
-   puis ouvrez http://localhost:5174.
+### Voir vos vraies conversations
+
+La scène affiche vos conversations Claude Code dès que les hooks sont installés (une seule fois) :
+
+```bash
+npm run hooks:install
+```
+
+L'installeur sauvegarde votre `settings.json`, conserve vos autres hooks et peut être annulé avec `npm run hooks:remove`. Les hooks s'appliquent aux sessions lancées après l'installation. Relancez la commande après une mise à jour qui ajoute des hooks (le compactage, par exemple) : les anciens sont remplacés. `npm start` vous le rappelle tant qu'ils ne sont pas installés.
+
+Pour voir aussi vos merge requests GitLab, ouvrez `.env` (créé au premier lancement) et renseignez `GITLAB_URL` et `GITLAB_TOKEN` (jeton personnel avec la portée `read_api`), puis relancez. Sans cela, seules les conversations sont affichées.
 
 Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
+
+### Mode démo
+
+Pour essayer sans rien installer d'autre, `npm run demo` ouvre la scène sur http://localhost:5173 avec des données d'exemple et une douzaine de changements d'état à déclencher ou à regarder défiler. C'est aussi ce que vous voyez quand le serveur local n'est pas joignable.
+
+### Sous WSL ou sur un autre poste
+
+Lancez `npm start` là où tournent vos sessions Claude Code : le serveur lit `~/.claude` de la machine où il s'exécute, et détecte aussi les sessions de Windows depuis WSL et inversement. Sous WSL, le navigateur s'ouvre côté Windows ; sinon ouvrez http://localhost:5174.
 
 ### Score, niveaux et badges
 
@@ -162,9 +169,10 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 
 | Commande | Effet |
 | --- | --- |
-| `npm run dev` | Mode démo (Vite seul) |
-| `npm run live` | Serveur local, scène et données en direct |
-| `npm start` | Construit la scène puis sert la version de production |
+| `npm start` | Tout lancer : dépendances, `.env`, serveur local, navigateur |
+| `npm run demo` (ou `dev`) | Mode démo (Vite seul, données d'exemple) |
+| `npm run live` | Serveur local seul, sans installation ni navigateur |
+| `npm run start:prod` | Construit la scène puis sert la version de production |
 | `npm test` | Tests du serveur, des hooks, du moteur de score et des utilitaires de la scène |
 | `npm run hooks:install` | Installe les hooks dans les réglages Claude Code |
 | `npm run hooks:remove` | Retire les hooks (et la ligne d'état si elle a été installée) |
@@ -175,7 +183,7 @@ Les hooks écrivent dans le dossier personnel du système où tourne Claude Code
 Deux workflows GitHub Actions, dans `.github/workflows/` :
 
 - **CI** (`ci.yml`) : à chaque pull request et à chaque push sur `main`, les tests tournent sur Ubuntu et Windows avec Node 22 et 24, puis la scène est construite avec Vite et le dossier `dist` est conservé sept jours comme artefact. Un nouveau push sur la même branche annule l'exécution précédente.
-- **Release** (`release.yml`) : un tag `v*` (par exemple `git tag v0.3.0 && git push --tags`) relance les tests, construit la scène et publie une release GitHub avec une archive zip prête à lancer (`dist`, `server`, `shared`, `hooks`, `package.json`, `README.md`, `.env.example`). Après `npm ci --omit=dev` dans l'archive, `node server/index.js --production` sert la version construite.
+- **Release** (`release.yml`) : un tag `v*` (par exemple `git tag v0.3.0 && git push --tags`) relance les tests, construit la scène et publie une release GitHub avec une archive zip prête à lancer (`dist`, `server`, `shared`, `hooks`, `scripts`, `lancer.cmd`, `lancer.sh`, `package.json`, `README.md`, `.env.example`). Le serveur n'a aucune dépendance en production : dans l'archive décompressée, `npm start` (ou `lancer.cmd`) sert directement la version construite, sans rien installer.
 
 Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.glb` n'est pas redistribuable (voir plus bas), et le tableau de bord lit vos sessions locales, il n'a de sens que sur votre machine.
 
