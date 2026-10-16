@@ -323,12 +323,12 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   const backWall = -ROOM_SIZE / 2 + 0.2;
 
   // Liseré LED au pied du mur du fond de chaque pièce, dans la couleur de la pièce.
-  rooms.forEach((roomId) => props.wallLedge(room(roomId), { x: 0, z: -ROOM_SIZE / 2 + 0.14, width: ROOM_SIZE - 0.8, color: ACCENTS[roomId], intensity: style.ledgeIntensity ?? 0.85 }));
+  rooms.forEach((roomId) => props.wallLedge(room(roomId), { x: 0, z: -ROOM_SIZE / 2 + 0.14, width: ROOM_SIZE - 0.8, color: style.accentColor ?? ACCENTS[roomId], intensity: style.ledgeIntensity ?? 0.85 }));
 
   props.counter(room("acc"), { x: -0.3, z: -3.9, width: 3.4, depth: 0.8, top: M.white, light: 0xff6b6b });
   addBox(room("acc"), 0.8, 0.46, 0.03, M.black, -0.3, 1.38, -4.05);
   addBox(room("acc"), 0.74, 0.4, 0.01, M.screen, -0.3, 1.38, -4.03).castShadow = false;
-  props.signPanel(room("acc"), { x: -0.3, y: 2.35, z: backWall, width: 3.2, height: 0.8, text: "BUREAUX CLAUDE", accentColor: "#ff6b6b" });
+  props.signPanel(room("acc"), { x: -0.3, y: 2.35, z: backWall, width: 3.2, height: 0.8, text: style.receptionSign ?? "BUREAUX CLAUDE", accentColor: "#ff6b6b" });
   props.rug(room("acc"), { x: 0.6, z: 0.4, width: 4.6, depth: 3.2, color: M.fog });
   props.sofa(room("acc"), { x: 4.3, z: -2.1, ry: -Math.PI / 2, length: 2.4 });
   props.roundTable(room("acc"), { x: 3.1, z: -2.1, radius: 0.5 });

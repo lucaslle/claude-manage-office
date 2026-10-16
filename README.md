@@ -130,6 +130,7 @@ Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs 
 | Marine et or | Toujours sombre, accent doré, cadres dorés |
 | Terracotta | Orange chaud, clair ou sombre |
 | Vert forêt | Vert, clair ou sombre |
+| Xefi | Aux couleurs de l'entreprise (rouge #E10600, noir et blanc, relevées sur xefi.fr) : liserés rouges dans toutes les pièces, enseigne « XEFI » à l'accueil avec un logo en X qui tourne, signature « La proximité informatique » en salle de réunion, robots rouges au X blanc sur la poitrine. Clair ou sombre |
 | Minecraft | Univers : tout est cube et texturé en pixels (planches, pierre, herbe, émeraude, netherrack), casiers en coffres, canapés en lits, plantes en pousses et cactus, torches, creepers et TNT dans la salle des bugs, moutons et portail du Nether dans la cour. Clair ou sombre |
 | Among Us | Univers : vaisseau spatial, plaques de coque, bandes de danger, bouches d'aération, équipiers à la place des plantes, bouton d'urgence sur la table de réunion, étoiles et planète. Toujours sombre |
 | Chef | Univers : cuisine de restaurant, carrelage blanc, damiers et carreaux de terre cuite, inox, frigos, piano de cuisson et four à pizza, citronniers et aromates, potager et parasol dans la cour. Clair ou sombre |

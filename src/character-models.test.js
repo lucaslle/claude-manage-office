@@ -9,7 +9,7 @@ const CLIPS = ["Idle", "Walking", "Storm", "Fume", "Wave", "Sitting", "Punch", "
 const canvasStub = { width: 0, height: 0, getContext: () => ({ fillRect() {}, set fillStyle(value) {} }) };
 globalThis.document ??= { createElement: () => canvasStub };
 
-const CHARACTERS = ["robot", "crewmate", "steve", "minifig", "chef", "cyber"];
+const CHARACTERS = ["robot", "crewmate", "steve", "minifig", "chef", "cyber", "xefi"];
 
 describe("personnages par univers", () => {
   it("associe un personnage à chaque univers, et le robot aux autres thèmes", () => {
@@ -18,6 +18,7 @@ describe("personnages par univers", () => {
     assert.equal(characterFor("lego"), "minifig");
     assert.equal(characterFor("chef"), "chef");
     assert.equal(characterFor("cyber"), "cyber");
+    assert.equal(characterFor("xefi"), "xefi");
     assert.equal(characterFor(undefined), "robot");
     assert.equal(characterFor("office"), "robot");
     BRANDS.filter((brand) => brand.style).forEach((brand) => assert.ok(CHARACTERS.includes(characterFor(brand.style)), brand.id));
