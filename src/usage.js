@@ -38,11 +38,17 @@ const buildMeter = (title, window, now) => {
   return meter;
 };
 
-const buildModelRow = (model, now) => {
+// Les limites par modèle ne se mettent à jour que par /eddy-snapshot : on affiche leur âge, en alerte quand il devient grand.
+const buildModelRow = (model, now, detailsAt) => {
   const expired = isExpired(model, now);
   const percent = expired ? 0 : model.usedPercent;
   const row = element("div", `mini-meter meter--${tone(percent)}`);
-  row.append(element("span", "", model.label), buildTrack(percent), element("span", "mini-meter__value", expired ? "—" : `${percent} %`));
+  const label = element("span", "mini-meter__label", model.label);
+  if (detailsAt !== null) {
+    const age = now - detailsAt;
+    label.append(element("small", age > SNAPSHOT_STALE_MS ? "mini-meter__age mini-meter__age--stale" : "mini-meter__age", formatAge(age)));
+  }
+  row.append(label, buildTrack(percent), element("span", "mini-meter__value", expired ? "—" : `${percent} %`));
   return row;
 };
 
@@ -69,7 +75,8 @@ export const createUsagePanel = ({ body, meta }) => {
     if (current.sevenDay) body.append(buildMeter("Semaine, tous modèles", current.sevenDay, now));
     if (Array.isArray(current.models) && current.models.length > 0) {
       const models = element("div", "mini-meters");
-      current.models.forEach((model) => models.append(buildModelRow(model, now)));
+      const detailsAt = current.detailsAt ?? (current.source === "snapshot" ? current.updatedAt : null);
+      current.models.forEach((model) => models.append(buildModelRow(model, now, detailsAt)));
       body.append(models);
     }
   };

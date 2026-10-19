@@ -966,6 +966,23 @@ body {
   font-size: 12px;
 }
 
+.mini-meter__label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.mini-meter__age {
+  color: var(--color-muted);
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+
+.mini-meter__age--stale {
+  color: var(--color-warn);
+  opacity: 1;
+}
+
 .mini-meter .meter__track {
   height: 6px;
   margin: 0;
