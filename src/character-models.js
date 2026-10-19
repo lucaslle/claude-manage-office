@@ -182,8 +182,98 @@ const buildMinifig = () => {
   });
 };
 
+const GHOST_TOP = 1.06;
+const GHOST_HEM = -0.5;
+const GHOST_PROFILE = [[0.5, GHOST_HEM], [0.54, -0.28], [0.52, 0.05], [0.5, 0.38], [0.44, 0.72], [0.31, 0.95], [0.14, 1.04], [0, GHOST_TOP]];
+const GHOST_COLORS = { hem: new THREE.Color(0x6f7dff), top: new THREE.Color(0xd6e8ff) };
+const GHOST_ORANGE = 0xfc6d26;
+
+// Corps de fantôme : une surface de révolution dont l'ourlet ondule, avec un dégradé de transparence (très léger en bas, plus dense en haut).
+const ghostBodyGeometry = () => {
+  const points = new THREE.SplineCurve(GHOST_PROFILE.map(([radius, height]) => new THREE.Vector2(radius, height))).getPoints(28);
+  const geometry = new THREE.LatheGeometry(points, 48);
+  const positions = geometry.attributes.position;
+  const colors = new Float32Array(positions.count * 4);
+  const tint = new THREE.Color();
+  for (let index = 0; index < positions.count; index += 1) {
+    const x = positions.getX(index);
+    const z = positions.getZ(index);
+    const height = positions.getY(index);
+    const lift = (height - GHOST_HEM) / (GHOST_TOP - GHOST_HEM);
+    const hem = Math.max(0, 1 - lift * 5);
+    positions.setY(index, height - hem * (0.5 + 0.5 * Math.sin(Math.atan2(x, z) * 5)) * 0.14);
+    tint.lerpColors(GHOST_COLORS.hem, GHOST_COLORS.top, Math.min(1, lift * 1.4));
+    colors.set([tint.r, tint.g, tint.b, 0.3 + 0.55 * Math.min(1, lift * 1.6)], index * 4);
+  }
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 4));
+  geometry.computeVertexNormals();
+  return geometry;
+};
+
+// Une merge request : un fantôme translucide avec le symbole de fusion de GitLab sur le ventre. Même squelette que les robots (les jambes sont vides, il flotte).
+const buildMergeRequest = () => {
+  const glass = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, depthWrite: false, roughness: 0.35, metalness: 0, emissive: 0x2a4fc2, emissiveIntensity: 0.55, side: THREE.DoubleSide });
+  const limb = new THREE.MeshStandardMaterial({ color: 0xb4c9ff, transparent: true, opacity: 0.78, depthWrite: false, roughness: 0.35, emissive: 0x2a4fc2, emissiveIntensity: 0.55 });
+  const ink = standard(0x182550, { roughness: 0.4 });
+  const blush = new THREE.MeshStandardMaterial({ color: 0xff9ab8, transparent: true, opacity: 0.55, depthWrite: false, roughness: 0.8 });
+  const shine = standard(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.9 });
+  const orange = standard(GHOST_ORANGE, { roughness: 0.35, emissive: GHOST_ORANGE, emissiveIntensity: 0.9 });
+
+  const scene = new THREE.Group();
+  scene.name = "MergeRequest";
+  const body = group("Body", scene);
+  const hips = group("Hips", body, 0, HIP_Y, 0);
+  ["L", "R"].forEach((label) => {
+    const hip = group(`Leg${label}`, hips, 0, 0, 0);
+    group(`Shin${label}`, hip, 0, -0.26, 0);
+  });
+
+  const torso = group("Torso", hips);
+  mesh(ghostBodyGeometry(), glass, torso);
+
+  const emblem = group("Merge", torso, 0, 0.3, 0.505);
+  emblem.rotation.x = -0.12;
+  const node = (x, y) => mesh(new THREE.SphereGeometry(0.052, 16, 12), orange, emblem, x, y, 0);
+  const link = (fromX, fromY, toX, toY) => {
+    const length = Math.hypot(toX - fromX, toY - fromY);
+    const bar = mesh(new THREE.CylinderGeometry(0.017, 0.017, length, 8), orange, emblem, (fromX + toX) / 2, (fromY + toY) / 2, 0);
+    bar.rotation.z = Math.atan2(toX - fromX, toY - fromY) * -1;
+  };
+  node(-0.11, 0.1);
+  node(0.11, 0.1);
+  node(0, -0.1);
+  link(-0.11, 0.1, 0, -0.1);
+  link(0.11, 0.1, 0, -0.1);
+
+  const head = group("Head", torso, 0, 0.06, 0);
+  [-1, 1].forEach((side) => {
+    mesh(new THREE.SphereGeometry(0.075, 16, 12), ink, head, side * 0.17, 0.58, 0.45).scale.set(0.8, 1.35, 0.5);
+    mesh(new THREE.SphereGeometry(0.02, 8, 6), shine, head, side * 0.17 + 0.02, 0.63, 0.478);
+    mesh(new THREE.CircleGeometry(0.06, 16), blush, head, side * 0.3, 0.49, 0.4).rotation.y = side * 0.55;
+  });
+  const smile = mesh(new THREE.TorusGeometry(0.05, 0.011, 8, 16, Math.PI), ink, head, 0, 0.52, 0.47);
+  smile.rotation.z = Math.PI;
+  smile.rotation.x = -0.1;
+
+  ["L", "R"].forEach((label, index) => {
+    const side = index ? 1 : -1;
+    const shoulder = group(`Arm${label}`, torso, side * 0.5, 0.58, 0);
+    mesh(new THREE.CapsuleGeometry(0.075, 0.2, 6, 14), limb, shoulder, 0, -0.14, 0);
+    const forearm = group(`Forearm${label}`, shoulder, 0, -0.26, 0);
+    mesh(new THREE.SphereGeometry(0.085, 14, 10), limb, forearm, 0, -0.1, 0);
+  });
+
+  scene.traverse((object) => {
+    if (object.isMesh) object.renderOrder = 2;
+  });
+  return { scene, animations: buildClips() };
+};
+
+export const buildMergeRequestModel = buildMergeRequest;
+
 const buildChef = () =>
   buildRobotModel({
+    antenna: false,
     decorate: ({ head, mesh: add, materials }) => {
       const white = standard(0xffffff, { roughness: 0.8 });
       add(new THREE.CylinderGeometry(0.34, 0.38, 0.26, 28), white, head, 0, 1.0, 0);
@@ -196,6 +286,7 @@ const buildChef = () =>
 
 const buildCyber = () =>
   buildRobotModel({
+    antenna: false,
     clay: 0x1c1736,
     ink: 0x07050d,
     cream: 0xff2bd6,

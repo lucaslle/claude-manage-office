@@ -118,7 +118,9 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     },
     ready: (eventDefinition, spec) => {
       spec.draft = false;
+      spec.room = eventDefinition.room;
       spec.why = eventDefinition.note;
+      spec.action = ROOM_ACTIONS[eventDefinition.room];
       applyDemoSpecs();
     },
     exit: (eventDefinition, spec) => {
@@ -295,7 +297,7 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     onOverflow?.(overflow);
     hud.update(state.characters);
     scoreTracker.apply(state.score ?? null);
-    usagePanel.render(state.usage ?? null);
+    usagePanel.render(state.usage ?? null, { live: true });
     connectorsPanel.render({ snapshot: state.connectors ?? null, sources: state.sources });
     const gitlab = state.sources.gitlab;
     const problem = gitlab.state === "ok" || gitlab.state === "pending" ? "" : gitlab.message;

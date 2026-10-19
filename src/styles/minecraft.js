@@ -166,7 +166,7 @@ export const MINECRAFT_STYLE = {
     acc: { kind: "quartz" },
     open: { kind: "planks" },
     rev: { kind: "stoneBrick" },
-    mrg: { kind: "emerald" },
+    draft: { kind: "quartz" },
     pause: { kind: "planks" },
     fix: { kind: "cobble" },
     arch: { kind: "deepslate" },

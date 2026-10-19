@@ -28,7 +28,7 @@ const FLOORS = {
   acc: { color: "#eceeef", kind: "tile" },
   open: { color: "#6a6e74", kind: "carpet" },
   rev: { color: "#5c6066", kind: "carpet" },
-  mrg: { color: "#eceeef", kind: "tile" },
+  draft: { color: "#d9dadc", kind: "carpet" },
   fix: { color: "#8a8d92", kind: "concrete" },
   arch: { color: "#55585d", kind: "carpet" },
   meet: { color: "#6a6e74", kind: "carpet" },

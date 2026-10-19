@@ -31,6 +31,7 @@ describe("usageFromPlan", () => {
     assert.equal(usage.sevenDay.usedPercent, 25);
     assert.deepEqual(usage.models.map((model) => [model.label, model.usedPercent]), [["Fable", 11]]);
     assert.equal(usage.plan, "Team");
+    assert.equal(usage.detailsAt, 1000);
   });
 
   it("renvoie null quand les limites ne s'appliquent pas", () => {
@@ -52,6 +53,17 @@ describe("usageFromStatusline", () => {
     const usage = usageFromStatusline(payload, { plan: "Team", models: [{ label: "Fable", usedPercent: 11 }] }, 5);
     assert.deepEqual(usage.models, [{ label: "Fable", usedPercent: 11 }]);
     assert.equal(usage.plan, "Team");
+  });
+
+  it("garde la date du dernier relevé des modèles, sans la renouveler", () => {
+    const fromPlan = usageFromStatusline(payload, { source: "snapshot", updatedAt: 100, detailsAt: 100, plan: "Team", models: [] }, 5000);
+    assert.equal(fromPlan.updatedAt, 5000);
+    assert.equal(fromPlan.detailsAt, 100);
+    const fromOldSnapshot = usageFromStatusline(payload, { source: "snapshot", updatedAt: 200, models: [] }, 5000);
+    assert.equal(fromOldSnapshot.detailsAt, 200);
+    const chained = usageFromStatusline(payload, fromPlan, 9000);
+    assert.equal(chained.detailsAt, 100);
+    assert.equal(usageFromStatusline(payload, null, 5).detailsAt, null);
   });
 
   it("ignore un message sans limites", () => {

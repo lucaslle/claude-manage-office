@@ -12,11 +12,11 @@ L'entreprise est un petit immeuble vu du dessus. Chaque pièce correspond à un 
 | --- | --- |
 | Accueil | Une session Claude attend votre réponse (question en fin de message, demande de permission, ou spec Spec Kit à clarifier). Le personnage fait signe, avec une bulle « ! » |
 | Open space | Claude travaille |
-| Salle des bugs | Claude travaille sur un correctif : même chose que l'open space, mais pour les discussions qui corrigent un bug (voir ci-dessous). Elle occupe la place de l'ancienne salle des brouillons, devant l'atelier. Il n'y a plus de salle des brouillons ni d'attente |
-| Relecture | MR ouverte, en attente de relecture ou d'approbation, MR marquée Draft ou qui dépend d'une autre MR encore ouverte (la raison est indiquée sur sa fiche), et conversation où vous faites une review (voir ci-dessous) |
-| Merge | MR mergeable, sans blocage |
-| Atelier | Pipeline en échec, conflit ou rebase nécessaire, et conversation au repos dont la fonctionnalité Spec Kit n'est pas terminée (voir ci-dessous) |
-| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : salle à part, sur parquet, avec neuf canapés (9 places, une par canapé, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`), des petites tables et un bar à café au fond. Elle est devant la salle de merge, à droite |
+| Salle des bugs | Claude travaille sur un correctif : même chose que l'open space, mais pour les discussions qui corrigent un bug (voir ci-dessous). Elle est devant l'atelier. Il n'y a plus de salle d'attente |
+| Relecture | MR ouverte, en attente de relecture ou d'approbation, MR mergeable sans blocage (la raison, « Prête à merger » par exemple, est indiquée sur sa fiche) ou qui dépend d'une autre MR encore ouverte, et conversation où vous faites une review (voir ci-dessous) |
+| Salle des brouillons | Toute MR marquée Draft, sans se soucier de son pipeline, d'un conflit ni d'une dépendance : un brouillon n'est pas censé être propre. Elle occupe la place de l'ancienne salle de merge |
+| Atelier | Toute MR qui a un problème à corriger (conflit, rebase, pipeline en échec, modifications demandées, fils de discussion ouverts, autre blocage GitLab), même si GitLab la laisse mergeable (les brouillons n'y vont pas : ils ont leur salle), et conversation au repos dont la fonctionnalité Spec Kit n'est pas terminée (voir ci-dessous). Le panneau « Atelier : MR à corriger », dans la colonne de droite, les liste toutes avec leur cause (jobs en échec nommés), filtrables par cause, même quand l'atelier est plein (8 places) |
+| Pause | Session terminée depuis moins de 2 h, sans question ni MR ouverte : salle à part, sur parquet, avec neuf canapés (9 places, une par canapé, les plus récentes d'abord ; voir `EDDY_REST_MINUTES`), des petites tables et un bar à café au fond. Elle est à droite de la salle des brouillons |
 | Archives | Session terminée depuis plus longtemps, ou qui n'a plus de place en Pause |
 | Salle de réunion | Une session a lancé plusieurs agents : elle s'y installe avec eux |
 
@@ -24,7 +24,7 @@ Une discussion est un fix de bug quand son titre ou le nom de sa branche parle d
 
 Quand une session lance des agents, chacun apparaît comme un petit robot. À partir de deux agents actifs, la session et ses agents se retrouvent en salle de réunion ; avec un seul agent, ils restent à l'open space. Tant qu'un agent travaille, la session ne retourne jamais aux archives, même si son tour de parole est terminé. Elle ne rejoint les archives (ou sa MR) qu'une fois tous ses agents terminés. Si elle attend une réponse de votre part, elle va à l'accueil, et ses agents restent en réunion.
 
-Les robots sont des conversations Claude. Les silhouettes bleutées translucides sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée sort par le portique de la salle de merge. Une conversation que vous videz avec `/clear` trépigne un instant, puis quitte les bureaux par la porte d'entrée de l'accueil, en la claquant. Une conversation que vous compactez avec `/compact` (ou que Claude Code compacte tout seul quand le contexte est plein) se fait tasser sur place le temps du résumé, puis reprend sa forme dans un petit nuage de poussière.
+Les robots sont des conversations Claude. Les petits fantômes bleutés translucides, avec le symbole de fusion de GitLab sur le ventre, sont des merge requests sans conversation liée. Une session est reliée à sa MR par le nom de branche. Une MR mergée danse un instant, puis quitte les bureaux en claquant la porte d'entrée. Une MR close sur GitLab disparaît sans cérémonie. Une conversation que vous videz avec `/clear` trépigne un instant, puis quitte les bureaux par la porte d'entrée de l'accueil, en la claquant. Une conversation que vous compactez avec `/compact` (ou que Claude Code compacte tout seul quand le contexte est plein) se fait tasser sur place le temps du résumé, puis reprend sa forme dans un petit nuage de poussière.
 
 Quand une session attend une réponse, elle reste à l'accueil même si sa MR est prête : c'est vous qui bloquez.
 
@@ -68,6 +68,24 @@ Pour voir aussi vos merge requests GitLab, ouvrez `.env` (créé au premier lanc
 
 Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 
+### GitLab pour Claude (lecture seule)
+
+Avec un jeton à permissions fines (GitLab récent), cochez en lecture seule les ressources Merge request, Note, Pipeline, Job et Project (onglet « Group and project »), le profil (onglet « User ») et Merge request (onglet « Global »), puis testez avec `npm run gitlab -- moi` et `npm run gitlab -- mrs`.
+
+Le même jeton permet à une session Claude de consulter GitLab sans que vous ayez à le coller dans la conversation : `npm run gitlab -- aide` liste les commandes, toutes en lecture seule (requêtes GET, jeton `read_api`).
+
+| Commande | Résultat |
+|---|---|
+| `npm run gitlab -- moi` | L'utilisateur du jeton (vérifie que la connexion marche) |
+| `npm run gitlab -- mrs [created\|assigned\|review]` | Vos merge requests ouvertes |
+| `npm run gitlab -- mr <réf>` | Détail d'une MR : état, conflits, pipeline, relecteurs |
+| `npm run gitlab -- discussions <réf> [--all]` | Commentaires de relecture non résolus |
+| `npm run gitlab -- diff <réf> [--files] [--max-chars N]` | Fichiers et modifications |
+| `npm run gitlab -- jobs <réf>` | Jobs en échec du dernier pipeline |
+| `npm run gitlab -- log <projet> <job> [--lines N]` | Fin du journal d'un job |
+
+`<réf>` est l'URL de la MR, `groupe/projet!12` ou `groupe/projet 12`. Dans une session Claude, la commande `/gitlab` s'en sert pour répondre à une demande (« pourquoi le pipeline de !12 échoue ? »). Le jeton est lu dans `.env` ; pour un dossier de travail sans `.env` (un worktree, par exemple), mettez-le une fois dans `~/.claude/eddy-office/.env`, ou dans les variables d'environnement `GITLAB_URL` et `GITLAB_TOKEN`.
+
 ### Mode démo
 
 Pour essayer sans rien installer d'autre, `npm run demo` ouvre la scène sur http://localhost:5173 avec des données d'exemple et une douzaine de changements d'état à déclencher ou à regarder défiler. C'est aussi ce que vous voyez quand le serveur local n'est pas joignable.
@@ -95,7 +113,7 @@ La carte « Score » en haut de la colonne de droite transforme votre réactivit
 | Une conversation quitte l'accueil (vous avez répondu) | 10 |
 | … en moins de cinq minutes : réponse éclair | 25 |
 | Une MR sort de l'atelier (pipeline réparé, conflit résolu) | 20 |
-| Une MR passe de la relecture à la salle de merge | 15 |
+| Une MR devient prête à merger (aucun blocage) | 15 |
 | Un brouillon devient prêt à relire (la MR n'est plus marquée Draft) | 5 |
 | Une tâche Spec Kit est cochée (par tâche) | 3 |
 | Une fonctionnalité Spec Kit est terminée (dernière tâche cochée) | 60 |
@@ -136,11 +154,12 @@ La colonne de droite affiche vos limites Claude (session de 5 heures, semaine to
 
 - **Limites, en continu** : `npm run statusline:install` ajoute une ligne d'état Claude Code qui reçoit les limites après chaque message et les écrit dans `usage.json`. Elle n'écrase jamais une ligne d'état existante. Elle fonctionne dans les sessions Claude Code en terminal.
 - **Limites et connecteurs, à la demande** : la commande `/eddy-snapshot` (dossier `.claude/commands`) demande à une session Claude de lire ses connecteurs et ses limites, puis de les écrire dans les deux fichiers. Les données affichent leur ancienneté, et passent en orange quand elles sont trop vieilles.
-- **Limites et connecteurs, toutes les 10 minutes** : une tâche planifiée de l'app Claude (`eddy-refresh-usage-connecteurs`, section « Planifié » de la barre latérale) refait la même mise à jour toutes les 10 minutes. Elle ne tourne que lorsque l'app est ouverte. Chaque exécution est une petite session qui consomme un peu de votre usage ; son message commence par `[eddy-refresh]`, ce qui la fait masquer par le tableau de bord. Pour l'arrêter ou changer la fréquence, modifiez ou désactivez la tâche dans l'app. Elle contient le chemin du projet : si vous le déplacez, mettez-le à jour.
+- **Bouton « Actualiser » (limites, sans token)** : en mode direct, le bouton de la carte « Limites d'usage » demande au serveur de lancer `claude -p /usage`. Cette commande de la CLI Claude Code affiche les limites (session, semaine, détail par modèle) sans appeler de modèle : elle ne consomme aucun token. Le serveur écrit le résultat dans `usage.json` ; la lecture prend une dizaine de secondes. Il cherche la commande `claude` dans le PATH puis dans `~/.local/bin` ; sinon, indiquez son chemin dans la variable `CLAUDE_BIN`. Le plan (Team, Max…) n'est pas affiché par cette commande : il reste celui du dernier `/eddy-snapshot`.
+- **Pas de tâche planifiée** : l'état des connecteurs et le nom du plan ne sont lisibles que par des outils de l'app Claude, donc par un modèle. Une tâche qui les relirait toutes les 10 minutes coûtait environ 300 000 tokens à chaque passage (144 passages par jour). Seule la commande `/eddy-snapshot` les met à jour, quand vous le décidez. Chaque limite par modèle affiche l'âge de son dernier relevé (en orange au-delà de 30 minutes).
 
 ### Thèmes d'entreprise
 
-Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs de toute l'application : interface, murs, sols et éclairage de la scène 3D. Certains thèmes changent aussi l'univers de la scène (textures, mobilier, décor) : le bâtiment est alors reconstruit et les robots changent d'apparence sur place, sans bouger de pièce : équipiers dans Among Us, Steve dans Minecraft, minifigs dans Lego, robots cuisiniers avec toque dans Chef, robots chromés à néons dans Cyberpunk (les silhouettes de MR restent les mêmes). Le choix est mémorisé dans le navigateur.
+Le bouton rond à côté de la lune, dans la barre du haut, change les couleurs de toute l'application : interface, murs, sols et éclairage de la scène 3D. Certains thèmes changent aussi l'univers de la scène (textures, mobilier, décor) : le bâtiment est alors reconstruit et les robots changent d'apparence sur place, sans bouger de pièce : équipiers dans Among Us, Steve dans Minecraft, minifigs dans Lego, robots cuisiniers avec toque dans Chef, robots chromés à néons dans Cyberpunk (les fantômes de MR restent les mêmes). Le choix est mémorisé dans le navigateur.
 
 | Thème | Style |
 | --- | --- |
@@ -197,7 +216,7 @@ Deux workflows GitHub Actions, dans `.github/workflows/` :
 - **CI** (`ci.yml`) : à chaque pull request et à chaque push sur `main`, les tests tournent sur Ubuntu et Windows avec Node 22 et 24, puis la scène est construite avec Vite et le dossier `dist` est conservé sept jours comme artefact. Un nouveau push sur la même branche annule l'exécution précédente.
 - **Release** (`release.yml`) : un tag `v*` (par exemple `git tag v0.3.0 && git push --tags`) relance les tests, construit la scène et publie une release GitHub avec une archive zip prête à lancer (`dist`, `server`, `shared`, `hooks`, `scripts`, `lancer.cmd`, `lancer.sh`, `package.json`, `README.md`, `.env.example`). Le serveur n'a aucune dépendance en production : dans l'archive décompressée, `npm start` (ou `lancer.cmd`) sert directement la version construite, sans rien installer.
 
-Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.glb` n'est pas redistribuable (voir plus bas), et le tableau de bord lit vos sessions locales, il n'a de sens que sur votre machine.
+Il n'y a pas de déploiement automatique sur un site public : le tableau de bord lit vos sessions locales, il n'a de sens que sur votre machine.
 
 ## Limites
 
@@ -209,6 +228,5 @@ Il n'y a pas de déploiement automatique sur un site public : le modèle `Xbot.g
 
 ## Modèles 3D et licences
 
-- Les robots et leurs variantes d'univers sont construits en code à partir de primitives three.js (`src/robot-model.js` et `src/character-models.js`), sans fichier externe. Tous partagent le même squelette, donc les mêmes animations.
-- `Xbot.glb` : mannequin Mixamo, soumis aux conditions d'Adobe. Il n'est pas redistribuable tel quel : gardez ce dépôt privé ou remplacez ce modèle.
+- Les robots, leurs variantes d'univers et le fantôme des merge requests sont construits en code à partir de primitives three.js (`src/robot-model.js` et `src/character-models.js`), sans fichier externe. Tous partagent le même squelette, donc les mêmes animations.
 - Mobilier et décor : construits en code (`src/props.js` et `src/styles/`), sans modèle externe. Les textures (sols, murs, pixels de Minecraft) sont dessinées à la volée (`src/textures.js`), sans fichier image.

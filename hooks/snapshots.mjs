@@ -27,12 +27,17 @@ const windowFromStatusline = (limit) => {
   return { usedPercent, resetsAt: typeof limit.resets_at === "number" ? limit.resets_at * 1000 : null };
 };
 
+// Le plan et les limites par modèle ne viennent que de l'outil get_usage : on garde leur propre date (detailsAt) pour que
+// la ligne d'état, qui renouvelle updatedAt, ne les fasse pas passer pour récents.
+const detailsDate = (previous) => previous?.detailsAt ?? (previous?.source === "snapshot" ? previous.updatedAt : null) ?? null;
+
 export const usageFromStatusline = (payload, previous, now = Date.now()) => {
   const fiveHour = windowFromStatusline(payload?.rate_limits?.five_hour);
   const sevenDay = windowFromStatusline(payload?.rate_limits?.seven_day);
   if (!fiveHour && !sevenDay) return null;
   return {
     updatedAt: now,
+    detailsAt: detailsDate(previous),
     source: "statusline",
     plan: previous?.plan ?? "",
     fiveHour: fiveHour ?? previous?.fiveHour ?? null,
@@ -58,6 +63,7 @@ export const usageFromPlan = (toolOutput, now = Date.now()) => {
     .map((entry) => ({ label: entry.label.replace(/^Weekly\s*·\s*/i, ""), ...toWindow(entry) }));
   return {
     updatedAt: now,
+    detailsAt: now,
     source: "snapshot",
     plan: plan.plan ?? "",
     fiveHour: fiveHour ? toWindow(fiveHour) : null,

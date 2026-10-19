@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { attachDependencies } from "./gitlab.js";
-import { buildCharacters, classifyMergeRequest } from "./model.js";
+import { buildCharacters, classifyMergeRequest, diagnoseMergeRequest } from "./model.js";
 
 const makeMergeRequest = (overrides) => ({
   key: `m:${overrides.projectId}:${overrides.iid}`,
@@ -69,8 +69,12 @@ describe("classifyMergeRequest", () => {
     return classifyMergeRequest(subject, new Map([subject, ...others].map((entry) => [entry.key, entry]))).room;
   };
 
-  it("place un brouillon en relecture, même bloqué", () => {
-    assert.equal(classify({ draft: true }), "rev");
+  it("place un brouillon dans sa salle, même bloqué, en conflit ou avec une CI rouge", () => {
+    assert.equal(classify({ draft: true }), "draft");
+    const blocker = makeMergeRequest({ projectId: 2, iid: 2 });
+    assert.equal(classify({ draft: true, blockedBy: [blocker.key] }, [blocker]), "draft");
+    ["ci_must_pass", "conflict", "need_rebase", "requested_changes"].forEach((status) => assert.equal(classify({ draft: true, status }), "draft", status));
+    assert.equal(classify({ draft: true, hasConflicts: true, pipeline: { id: 1, status: "failed", failedJobs: [] } }), "draft");
   });
 
   it("place une MR bloquée par une MR ouverte en relecture, avec la raison", () => {
@@ -84,8 +88,22 @@ describe("classifyMergeRequest", () => {
     assert.equal(classify({ hasConflicts: true }), "fix");
   });
 
-  it("envoie une MR mergeable en salle de merge", () => {
-    assert.equal(classify({ status: "mergeable" }), "mrg");
+  it("envoie à l'atelier tout ce que l'auteur doit corriger, même si la MR est bloquée", () => {
+    ["need_rebase", "requested_changes", "discussions_not_resolved", "jira_association_missing", "locked_paths", "title_regex"].forEach((status) => assert.equal(classify({ status }), "fix", status));
+    const blocker = makeMergeRequest({ projectId: 2, iid: 2 });
+    assert.equal(classify({ status: "conflict", blockedBy: [blocker.key] }, [blocker]), "fix");
+  });
+
+  it("n'envoie pas à l'atelier une MR qui attend seulement quelqu'un d'autre", () => {
+    ["not_approved", "ci_still_running", "checking", "unchecked", "blocked_status"].forEach((status) => assert.equal(classify({ status }), "rev", status));
+  });
+
+  it("garde en relecture une MR mergeable et la marque prête à merger", () => {
+    const subject = makeMergeRequest({ projectId: 1, iid: 1, status: "mergeable" });
+    const result = classifyMergeRequest(subject, new Map([[subject.key, subject]]));
+    assert.equal(result.room, "rev");
+    assert.equal(result.ready, true);
+    assert.equal(result.action, "Merger la MR.");
   });
 
   it("garde en relecture une MR qui attend une approbation ou un pipeline", () => {
@@ -170,7 +188,8 @@ describe("discussion terminée", () => {
     assert.equal(build(makeSession({ ...fresh, state: "idle", activity: "review" })).room, "rev");
     assert.equal(build(makeSession({ ...fresh, state: "needs_reply" })).room, "acc");
     const withMergeRequest = buildCharacters({ sessions: [makeSession({ ...fresh, state: "idle", branch: "claude/fix" })], mergeRequests: [makeMergeRequest({ projectId: 1, iid: 9, status: "mergeable", sourceBranch: "claude/fix" })], now })[0];
-    assert.equal(withMergeRequest.room, "mrg");
+    assert.equal(withMergeRequest.room, "rev");
+    assert.equal(withMergeRequest.ready, true);
   });
 });
 
@@ -209,7 +228,47 @@ describe("conversation de review", () => {
   });
 });
 
+describe("diagnoseMergeRequest", () => {
+  it("nomme la cause : conflit, rebase, modifications, discussions", () => {
+    assert.deepEqual(
+      ["conflict", "need_rebase", "requested_changes", "discussions_not_resolved", "jira_association_missing"].map((status) => diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status })).code),
+      ["conflict", "rebase", "changes", "discussions", "blocked"],
+    );
+    assert.equal(diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, hasConflicts: true, status: "ci_must_pass" })).code, "conflict");
+  });
+
+  it("liste les jobs en échec quand le pipeline est connu", () => {
+    const jobs = ["lint", "test", "build", "deploy", "e2e"].map((name) => ({ name, stage: "ci" }));
+    const problem = diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status: "ci_must_pass", pipeline: { id: 9, status: "failed", failedJobs: jobs } }));
+    assert.equal(problem.reason, "Pipeline en échec : lint, test, build et 2 autres.");
+    assert.equal(problem.action, "Corriger le job lint, puis relancer.");
+    assert.equal(diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status: "ci_must_pass", pipeline: { id: 9, status: "canceled", failedJobs: [] } })).label, "Pipeline annulé");
+    assert.equal(diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status: "ci_must_pass" })).reason, "Le pipeline a échoué.");
+  });
+
+  it("voit une CI rouge même quand GitLab laisse la MR mergeable", () => {
+    const failed = { id: 9, status: "failed", failedJobs: [{ name: "phpunit", stage: "test" }] };
+    assert.equal(diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status: "mergeable", pipeline: failed })).reason, "Pipeline en échec : phpunit.");
+    assert.equal(classifyMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status: "mergeable", pipeline: failed }), new Map()).room, "fix");
+    assert.equal(diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status: "mergeable", pipeline: { id: 10, status: "running", failedJobs: [] } })), null);
+  });
+
+  it("ne voit aucun problème dans une MR saine", () => {
+    ["mergeable", "not_approved", "ci_still_running"].forEach((status) => assert.equal(diagnoseMergeRequest(makeMergeRequest({ projectId: 1, iid: 1, status })), null));
+  });
+});
+
 describe("buildCharacters", () => {
+  it("expose la cause du problème sur la MR et sur la session qui la suit", () => {
+    const broken = makeMergeRequest({ projectId: 1, iid: 5, status: "conflict", sourceBranch: "claude/x" });
+    const alone = makeMergeRequest({ projectId: 1, iid: 6, status: "need_rebase", sourceBranch: "autre" });
+    const healthy = makeMergeRequest({ projectId: 1, iid: 7, status: "mergeable", sourceBranch: "sain" });
+    const characters = buildCharacters({ sessions: [makeSession({ state: "idle", branch: "claude/x" })], mergeRequests: [broken, alone, healthy] });
+    assert.deepEqual(characters.find((character) => character.kind === "robot").problem, { code: "conflict", label: "Conflit" });
+    assert.deepEqual(characters.find((character) => character.key === alone.key).problem, { code: "rebase", label: "À rebaser" });
+    assert.equal(characters.find((character) => character.key === healthy.key).problem, undefined);
+  });
+
   it("met à l'accueil une session qui attend une réponse, même si sa MR est prête", () => {
     const mergeRequest = makeMergeRequest({ projectId: 1, iid: 1766, status: "mergeable", sourceBranch: "041-filter" });
     const session = makeSession({ state: "needs_reply", branch: "041-filter", lastMessage: "Je ferme la MR ?" });
@@ -223,7 +282,7 @@ describe("buildCharacters", () => {
     const mergeRequest = makeMergeRequest({ projectId: 1, iid: 114, status: "mergeable", sourceBranch: "claude/fix" });
     const session = makeSession({ state: "idle", branch: "claude/fix" });
     const [character] = buildCharacters({ sessions: [session], mergeRequests: [mergeRequest] });
-    assert.equal(character.room, "mrg");
+    assert.equal(character.room, "rev");
   });
 
   it("archive une session au repos sans MR une fois le délai de repos écoulé", () => {
@@ -236,7 +295,7 @@ describe("buildCharacters", () => {
     const characters = buildCharacters({ sessions: [], mergeRequests: [mergeRequest] });
     assert.deepEqual(
       characters.map((character) => [character.kind, character.room]),
-      [["mr", "rev"]],
+      [["mr", "draft"]],
     );
   });
 });
@@ -335,7 +394,7 @@ describe("fonctionnalités Spec Kit", () => {
 
   it("garde la MR liée prioritaire sur l'atelier", () => {
     const mergeRequest = makeMergeRequest({ projectId: 1, iid: 3, status: "mergeable", sourceBranch: "041-filtre" });
-    assert.equal(build({ state: "idle", branch: "041-filtre" }, feature(), [mergeRequest]).room, "mrg");
+    assert.equal(build({ state: "idle", branch: "041-filtre" }, feature(), [mergeRequest]).room, "rev");
   });
 
   it("ne prend pas de place en Pause tant que la fonctionnalité n'est pas terminée", () => {

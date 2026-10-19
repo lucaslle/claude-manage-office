@@ -5,12 +5,12 @@ export const DOOR_ACROSS = -3.0;
 
 // La relecture est au centre : elle touche l'open space, l'atelier, la salle de merge et les archives,
 // les quatre pièces avec lesquelles sessions et MR échangent le plus. Accueil, open space et réunion
-// forment la rangée du fond ; bugs, merge et pause la rangée de devant. La salle des bugs est un open space
-// à part. null marquerait une case sans pièce (aucune pour l'instant).
+// forment la rangée du fond ; bugs, brouillons et pause la rangée de devant. La salle des bugs est un open space
+// à part, la salle des brouillons accueille les MR Draft. null marquerait une case sans pièce (aucune pour l'instant).
 export const GRID = [
   ["acc", "open", "meet"],
   ["fix", "rev", "arch"],
-  ["bug", "mrg", "pause"],
+  ["bug", "draft", "pause"],
 ];
 
 export const COLUMNS = GRID[0].length;
@@ -91,11 +91,15 @@ export const SLOTS = {
     { x: -1.8, z: 1.2, ry: 0.4, pose: "stand" },
     { x: 4.0, z: 1.6, ry: 0.4, pose: "stand" },
   ],
-  mrg: [
-    { x: -1.5, z: -1.2, ry: Math.PI, pose: "ready" },
-    { x: 1.5, z: -1.2, ry: Math.PI, pose: "ready" },
-    { x: -1.5, z: 0.8, ry: Math.PI, pose: "ready" },
-    { x: 1.5, z: 0.8, ry: Math.PI, pose: "ready" },
+  draft: [
+    { x: -0.9, z: -2.4, ry: Math.PI, pose: "work" },
+    { x: 2.4, z: -2.4, ry: Math.PI, pose: "work" },
+    { x: -1.4, z: -0.4, ry: 0.4, pose: "stand" },
+    { x: 0.8, z: -0.4, ry: 0.4, pose: "stand" },
+    { x: 3.0, z: -0.4, ry: 0.4, pose: "stand" },
+    { x: -0.4, z: 1.2, ry: 0.4, pose: "stand" },
+    { x: 1.8, z: 1.2, ry: 0.4, pose: "stand" },
+    { x: 4.0, z: 1.0, ry: 0.4, pose: "stand" },
   ],
   fix: [
     { x: -1.4, z: -2.2, ry: Math.PI, pose: "work" },
@@ -138,4 +142,3 @@ export const SLOTS = {
 
 export const SEATED_POSES = new Set(["type", "sleep", "meet"]);
 
-export const GATE_LOCAL = { x: 0, z: -3.2 };

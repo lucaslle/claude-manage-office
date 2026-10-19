@@ -85,6 +85,7 @@
           <header class="card__head">
             <h2 class="card__title" id="usage-title">Limites d'usage</h2>
             <span class="card__meta" id="usage-meta"></span>
+            <button class="button button--small" id="usage-refresh" type="button" title="Lit /usage avec la CLI Claude Code, sans consommer de tokens" hidden>Actualiser</button>
           </header>
           <div id="usage-body"></div>
         </section>
@@ -94,6 +95,14 @@
             <span class="card__meta" id="score-meta"></span>
           </header>
           <div id="score-body"></div>
+        </section>
+        <section class="card" id="problems-panel" aria-labelledby="problems-title">
+          <header class="card__head">
+            <h2 class="card__title" id="problems-title">Atelier : MR à corriger</h2>
+            <span class="card__meta" id="problems-meta"></span>
+          </header>
+          <div class="problems__filters" id="problems-filters"></div>
+          <ul class="problems__list" id="problems-list"></ul>
         </section>
         <section class="card" aria-live="polite" aria-label="Détail du personnage sélectionné">
           <header class="card__head">
@@ -108,7 +117,7 @@
             <dt>Action</dt>
             <dd id="panel-action"></dd>
           </dl>
-          <a class="link" id="panel-link" target="_blank" rel="noopener" hidden>Ouvrir dans GitLab</a>
+          <a class="gitlab-link" id="panel-link" target="_blank" rel="noopener" hidden><svg class="gitlab__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M23.6 9.59l-.03-.09L20.3.98a.85.85 0 0 0-.34-.4.87.87 0 0 0-1 .05.87.87 0 0 0-.29.44l-2.2 6.75H7.54L5.33 1.07a.86.86 0 0 0-.29-.44.87.87 0 0 0-1-.05.86.86 0 0 0-.34.4L.43 9.5l-.03.09a6.07 6.07 0 0 0 2.01 7.01l.01.01.03.02 4.98 3.73 2.46 1.86 1.5 1.13a1 1 0 0 0 1.22 0l1.5-1.13 2.46-1.86 5-3.75.01-.01a6.07 6.07 0 0 0 2.01-7z"/></svg><span>Ouvrir dans GitLab</span><svg class="gitlab__arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
         </section>
         <section class="card" aria-labelledby="connectors-title">
           <header class="card__head">
@@ -146,7 +155,7 @@
         </header>
         <div class="modal__scroll">
           <div id="modal-facts"></div>
-          <a class="link" id="modal-link" target="_blank" rel="noopener" hidden>Ouvrir dans GitLab</a>
+          <a class="gitlab-link" id="modal-link" target="_blank" rel="noopener" hidden><svg class="gitlab__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M23.6 9.59l-.03-.09L20.3.98a.85.85 0 0 0-.34-.4.87.87 0 0 0-1 .05.87.87 0 0 0-.29.44l-2.2 6.75H7.54L5.33 1.07a.86.86 0 0 0-.29-.44.87.87 0 0 0-1-.05.86.86 0 0 0-.34.4L.43 9.5l-.03.09a6.07 6.07 0 0 0 2.01 7.01l.01.01.03.02 4.98 3.73 2.46 1.86 1.5 1.13a1 1 0 0 0 1.22 0l1.5-1.13 2.46-1.86 5-3.75.01-.01a6.07 6.07 0 0 0 2.01-7z"/></svg><span>Ouvrir dans GitLab</span><svg class="gitlab__arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
           <section class="modal__context" id="modal-context"></section>
           <section class="modal__digest" id="modal-digest" aria-live="polite" aria-label="Résumé de la discussion"></section>
         </div>

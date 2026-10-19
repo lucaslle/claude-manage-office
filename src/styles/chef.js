@@ -134,7 +134,7 @@ const FLOORS = {
   acc: { color: "#262626", kind: "checker" },
   open: { color: "#b5532e", kind: "quarry" },
   rev: { color: "#6b7b8a", kind: "tile" },
-  mrg: { color: "#2f7d4f", kind: "checker" },
+  draft: { color: "#e8c46a", kind: "checker" },
   pause: { color: "#d4a017", kind: "checker" },
   fix: { color: "#9aa0a6", kind: "concrete" },
   arch: { color: "#8b5a2b", kind: "wood" },

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BRANDS } from "./brands.js";
-import { buildCharacterModel, characterFor } from "./character-models.js";
+import { buildCharacterModel, buildMergeRequestModel, characterFor } from "./character-models.js";
 
 const RIG = ["Body", "Hips", "Torso", "Head", "LegL", "LegR", "ShinL", "ShinR", "ArmL", "ArmR", "ForearmL", "ForearmR"];
-const CLIPS = ["Idle", "Walking", "Storm", "Fume", "Wave", "Sitting", "Punch", "Dance", "Yes", "No", "ThumbsUp"];
+const CLIPS = ["Idle", "Walking", "Storm", "Fume", "Wave", "Sitting", "Punch", "Dance", "Yes", "No", "ThumbsUp", "Sad"];
 
 const canvasStub = { width: 0, height: 0, getContext: () => ({ fillRect() {}, set fillStyle(value) {} }) };
 globalThis.document ??= { createElement: () => canvasStub };
@@ -33,6 +33,13 @@ describe("personnages par univers", () => {
       scene.traverse((node) => node.isMesh && materials.add(node.material.name));
       assert.ok(materials.has("Main"), `${characterId} Main`);
     });
+  });
+
+  it("la merge request est un fantôme sur le même squelette, sans matériau à teinter", () => {
+    const { scene, animations } = buildMergeRequestModel();
+    RIG.forEach((name) => assert.ok(scene.getObjectByName(name), `fantôme ${name}`));
+    ["Idle", "Walking", "Yes", "Dance", "Sad"].forEach((name) => assert.ok(animations.some((clip) => clip.name === name), `fantôme ${name}`));
+    scene.traverse((node) => node.isMesh && assert.notEqual(node.material.name, "Main"));
   });
 
   it("retombe sur le robot pour un personnage inconnu", () => {

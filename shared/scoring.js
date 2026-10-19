@@ -5,8 +5,7 @@ const MAX_COMBO_MULTIPLIER = 2;
 const EVENT_HISTORY = 30;
 const MERGED_HISTORY = 200;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const REPAIRED_ROOMS = new Set(["rev", "mrg"]);
-const READY_ROOMS = new Set(["rev", "mrg"]);
+const REPAIRED_ROOMS = new Set(["rev"]);
 
 export const POINTS = { reply: 10, quick_reply: 25, merge: 40, repair: 20, review: 15, ready: 5, inbox_zero: 30, task: 3, feature: 60 };
 
@@ -34,7 +33,7 @@ export const LEVELS = [
 ];
 
 export const BADGES = [
-  { id: "first_merge", name: "Premier merge", description: "Une MR a franchi le portique.", earned: (score) => score.totals.merge >= 1 },
+  { id: "first_merge", name: "Premier merge", description: "Une MR a été mergée.", earned: (score) => score.totals.merge >= 1 },
   { id: "merges_10", name: "Dix merges", description: "Dix MR mergées.", earned: (score) => score.totals.merge >= 10 },
   { id: "quick_5", name: "Réflexe", description: "Cinq réponses en moins de cinq minutes.", earned: (score) => score.totals.quick_reply >= 5 },
   { id: "repair_5", name: "Réparateur", description: "Cinq MR sorties de l'atelier.", earned: (score) => score.totals.repair >= 5 },
@@ -123,13 +122,12 @@ export const detectTransitions = ({ presence, characters, merged, scoredMerges, 
       events.push({ type: "ready", key: character.key, name });
       return;
     }
+    if (character.ready === true && !previous.ready) events.push({ type: "review", key: character.key, name });
     if (previous.room === character.room) return;
     if (previous.room === "acc" && isSession(character)) {
       events.push({ type: now - previous.since <= QUICK_REPLY_MS ? "quick_reply" : "reply", key: character.key, name });
     } else if (previous.room === "fix" && REPAIRED_ROOMS.has(character.room)) {
       events.push({ type: "repair", key: character.key, name });
-    } else if (previous.room === "rev" && character.room === "mrg") {
-      events.push({ type: "review", key: character.key, name });
     }
   });
   const alreadyScored = new Set(scoredMerges);
@@ -150,7 +148,7 @@ const nextPresence = (presence, characters, now) =>
     characters.map((character) => {
       const previous = presence[character.key];
       const since = previous && previous.room === character.room ? previous.since : now;
-      return [character.key, { room: character.room, since, name: character.name, session: isSession(character), draft: character.draft === true, tasksDone: character.feature?.done, taskTotal: character.feature?.total }];
+      return [character.key, { room: character.room, since, name: character.name, session: isSession(character), draft: character.draft === true, ready: character.ready === true, tasksDone: character.feature?.done, taskTotal: character.feature?.total }];
     }),
   );
 

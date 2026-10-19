@@ -27,7 +27,7 @@ const FLOORS = {
   acc: { color: "#e3e6eb", kind: "tile" },
   open: { color: "#cdd4de", kind: "carpet" },
   rev: { color: "#c8cde4", kind: "carpet" },
-  mrg: { color: "#dde5df", kind: "tile" },
+  draft: { color: "#ece3cf", kind: "carpet" },
   pause: { color: "#d8bd92", kind: "wood" },
   fix: { color: "#cfcfd2", kind: "concrete" },
   bug: { color: "#e6d3cd", kind: "carpet" },
@@ -39,7 +39,7 @@ const ACCENTS = {
   acc: 0xff6b6b,
   open: 0x3566f0,
   rev: 0x8f6bff,
-  mrg: 0x2fbf71,
+  draft: 0xf2b134,
   pause: 0x14b8a6,
   fix: 0xe24b4a,
   bug: 0xff7a3d,
@@ -375,14 +375,15 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
   addWallScreen("rev", 0.8, 2.8, 1.5, 0xa9c1ff, 0x3a58c0);
   props.plant(room("rev"), { x: 4.3, z: 4.3, height: 1.6 });
 
-  [-1.4, 1.4].forEach((offset) => addBox(roomGroups.mrg, 0.26, 2.2, 0.26, metalMaterial, offset, 1.1, -3.6));
-  const gateBeam = addBox(roomGroups.mrg, 3.06, 0.3, 0.3, new THREE.MeshStandardMaterial({ color: 0x4bbd6c, emissive: 0x1f8a42, emissiveIntensity: 1.1, roughness: 0.3 }), 0, 2.3, -3.6);
-  addBox(roomGroups.mrg, 2.0, 0.02, 8.0, standardMaterial(0xa3c391, { roughness: 0.9 }), 0, 0.01, 0.4);
-  for (let stripe = -3; stripe <= 3; stripe += 1) addBox(roomGroups.mrg, 0.12, 0.025, 0.6, standardMaterial(0xf6f8fa), 0, 0.02, stripe * 1.2 + 0.4);
-  props.signPanel(room("mrg"), { x: 0, y: 3.0, z: backWall, width: 2.6, height: 0.7, text: "MERGE", accentColor: "#2fbf71" });
-  props.counter(room("mrg"), { x: -4.35, z: -1.0, ry: Math.PI / 2, width: 1.8, depth: 0.6, top: M.white, light: 0x2fbf71 });
-  props.plant(room("mrg"), { x: 4.3, z: 4.3, height: 1.6 });
-  props.plant(room("mrg"), { x: -4.4, z: 4.3, kind: "snake" });
+  // Salle des brouillons : les MR Draft, quelle que soit leur CI. Deux bureaux au fond, un tapis au milieu, un tableau pour les esquisses.
+  [-0.9, 2.4].forEach((deskX) => props.desk(room("draft"), { x: deskX, z: -3.4 }));
+  props.rug(room("draft"), { x: 1.4, z: 0.4, width: 6.4, depth: 3.4, color: M.fog });
+  props.glassBoard(room("draft"), { x: 0.8, z: backWall, width: 2.8, height: 1.2 });
+  props.signPanel(room("draft"), { x: 0.8, y: 2.8, z: backWall, width: 2.8, height: 0.7, text: "BROUILLONS", accentColor: "#f2b134" });
+  props.lockers(room("draft"), { x: -4.6, z: -1.0, ry: Math.PI / 2, count: 3 });
+  props.plant(room("draft"), { x: 4.3, z: 4.3, height: 1.6 });
+  props.plant(room("draft"), { x: -4.4, z: 4.3, kind: "snake" });
+  props.plant(room("draft"), { x: 4.4, z: -4.3, height: 1.7 });
 
   props.workbench(room("fix"), { x: 0.4, z: -3.9, width: 5.2 });
   props.lockers(room("fix"), { x: 4.1, z: -4.0, count: 2 });
@@ -495,5 +496,5 @@ export const buildWorld = async (scene, style = OFFICE_STYLE) => {
     floorMaterials.forEach((material) => material.color.set(palette.floorTint));
   };
 
-  return { world, roomGroups, update, setRoomOverflow, applyPalette, gateBeam, exitDoor, style };
+  return { world, roomGroups, update, setRoomOverflow, applyPalette, exitDoor, style };
 };
