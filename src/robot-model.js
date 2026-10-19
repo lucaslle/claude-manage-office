@@ -124,6 +124,14 @@ export const buildClips = () => [
     "LegL.rotation[x]": spread(1.2, [0.3, -0.3, 0.3, -0.3, 0.3]),
     "LegR.rotation[x]": spread(1.2, [-0.3, 0.3, -0.3, 0.3, -0.3]),
   }),
+  clip("Sad", 2.4, {
+    "Hips.position[y]": spread(2.4, [HIP_Y, HIP_Y - 0.025, HIP_Y]),
+    "Head.rotation[x]": hold(0.4),
+    "Head.rotation[z]": spread(2.4, [0, 0.07, 0, -0.07, 0]),
+    "Torso.rotation[x]": hold(0.12),
+    "ArmL.rotation[z]": hold(-0.05),
+    "ArmR.rotation[z]": hold(0.05),
+  }),
   clip("Yes", 1.0, {
     "Head.rotation[x]": spread(1.0, [0, 0.32, 0, 0.32, 0]),
   }),
@@ -157,13 +165,14 @@ const starShape = (outer, inner) => {
 };
 
 // options : couleurs du robot, yeux lumineux, et decorate({ head, torso, hips, mesh, group, materials }) pour ajouter des accessoires (chapeau, antenne…).
-export const buildRobotModel = ({ clay = CLAUDE_TERRACOTTA, ink = 0x24201c, cream = CLAUDE_CREAM, metalness = 0.02, decorate = null } = {}) => {
-  const mainMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.05 });
+export const buildRobotModel = ({ clay = CLAUDE_TERRACOTTA, ink = 0x24201c, cream = CLAUDE_CREAM, metalness = 0.02, antenna = true, decorate = null } = {}) => {
+  const mainMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.05 });
   mainMaterial.name = "Main";
-  const clayMaterial = new THREE.MeshStandardMaterial({ color: clay, roughness: 0.6, metalness });
+  const clayMaterial = new THREE.MeshStandardMaterial({ color: clay, roughness: 0.38, metalness });
   const inkMaterial = new THREE.MeshStandardMaterial({ color: ink, roughness: 0.5, metalness: 0.1 });
   const creamMaterial = new THREE.MeshStandardMaterial({ color: cream, roughness: 0.7, metalness: 0 });
   const shineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6, roughness: 0.4 });
+  const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0xfff3dc, emissive: 0xffe2b0, emissiveIntensity: 1.5, roughness: 0.3 });
 
   const mesh = (geometry, material, parent, x = 0, y = 0, z = 0) => {
     const node = new THREE.Mesh(geometry, material);
@@ -186,31 +195,48 @@ export const buildRobotModel = ({ clay = CLAUDE_TERRACOTTA, ink = 0x24201c, crea
 
   const leg = (name, side) => {
     const hip = group(`Leg${name}`, hips, side * 0.24, 0, 0);
-    mesh(new THREE.CapsuleGeometry(0.09, 0.14, 6, 16), clayMaterial, hip, 0, -0.12, 0);
+    mesh(new THREE.SphereGeometry(0.115, 18, 14), inkMaterial, hip, 0, 0, 0);
+    mesh(new THREE.CapsuleGeometry(0.09, 0.14, 6, 16), inkMaterial, hip, 0, -0.13, 0);
     const shin = group(`Shin${name}`, hip, 0, -0.26, 0);
+    mesh(new THREE.SphereGeometry(0.095, 16, 12), inkMaterial, shin, 0, 0, 0);
     mesh(new THREE.CapsuleGeometry(0.08, 0.1, 6, 16), clayMaterial, shin, 0, -0.1, 0);
-    mesh(new RoundedBoxGeometry(0.24, 0.11, 0.32, 4, 0.05), mainMaterial, shin, 0, -0.22, 0.05);
+    mesh(new RoundedBoxGeometry(0.26, 0.12, 0.34, 4, 0.055), mainMaterial, shin, 0, -0.22, 0.05);
+    mesh(new RoundedBoxGeometry(0.2, 0.035, 0.1, 2, 0.015), creamMaterial, shin, 0, -0.18, 0.2);
   };
   leg("L", -1);
   leg("R", 1);
 
   const torso = group("Torso", hips);
   const head = group("Head", torso, 0, 0.06, 0);
-  mesh(new RoundedBoxGeometry(0.98, 0.9, 0.62, 5, 0.18), clayMaterial, head, 0, 0.45, 0);
+  mesh(new RoundedBoxGeometry(0.98, 0.9, 0.62, 6, 0.2), clayMaterial, head, 0, 0.45, 0);
+  mesh(new RoundedBoxGeometry(0.8, 0.44, 0.06, 4, 0.14), inkMaterial, head, 0, 0.63, 0.292);
   [-1, 1].forEach((side) => {
-    mesh(new RoundedBoxGeometry(0.13, 0.18, 0.05, 3, 0.035), inkMaterial, head, side * 0.2, 0.6, 0.31);
-    mesh(new THREE.SphereGeometry(0.028, 12, 10), shineMaterial, head, side * 0.2 + 0.03, 0.645, 0.335);
+    const eye = mesh(new THREE.CapsuleGeometry(0.052, 0.09, 6, 14), eyeMaterial, head, side * 0.19, 0.645, 0.322);
+    eye.scale.z = 0.5;
+    mesh(new THREE.SphereGeometry(0.02, 10, 8), shineMaterial, head, side * 0.19 + 0.018, 0.69, 0.345);
+    mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.07, 24), inkMaterial, head, side * 0.505, 0.72, 0).rotation.z = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.08, 20), mainMaterial, head, side * 0.515, 0.72, 0).rotation.z = Math.PI / 2;
   });
+  const smile = mesh(new THREE.TorusGeometry(0.075, 0.014, 8, 20, Math.PI), eyeMaterial, head, 0, 0.58, 0.325);
+  smile.rotation.z = Math.PI;
+  smile.scale.z = 0.5;
   const star = mesh(new THREE.ShapeGeometry(starShape(0.16, 0.095)), creamMaterial, head, 0, 0.26, 0.318);
   star.castShadow = false;
   mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.01, 24), creamMaterial, head, 0, 0.26, 0.32).rotation.x = Math.PI / 2;
+  mesh(new THREE.CylinderGeometry(0.24, 0.3, 0.08, 28), inkMaterial, head, 0, -0.01, 0);
+  if (antenna) {
+    mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.2, 8), inkMaterial, head, -0.26, 1.0, 0.02).rotation.z = 0.12;
+    mesh(new THREE.SphereGeometry(0.06, 16, 12), eyeMaterial, head, -0.285, 1.13, 0.02);
+  }
 
   const arm = (name, side) => {
     const shoulder = group(`Arm${name}`, head, side * 0.5, 0.52, 0);
-    mesh(new THREE.CapsuleGeometry(0.08, 0.16, 6, 16), clayMaterial, shoulder, 0, -0.1, 0);
-    const forearm = group(`Forearm${name}`, shoulder, 0, -0.22, 0);
-    mesh(new THREE.CapsuleGeometry(0.075, 0.12, 6, 16), clayMaterial, forearm, 0, -0.08, 0);
-    mesh(new THREE.SphereGeometry(0.1, 20, 16), mainMaterial, forearm, 0, -0.2, 0);
+    mesh(new THREE.SphereGeometry(0.105, 18, 14), inkMaterial, shoulder, 0, -0.02, 0);
+    mesh(new THREE.CapsuleGeometry(0.08, 0.16, 6, 16), clayMaterial, shoulder, 0, -0.12, 0);
+    const forearm = group(`Forearm${name}`, shoulder, 0, -0.24, 0);
+    mesh(new THREE.SphereGeometry(0.08, 16, 12), inkMaterial, forearm, 0, 0, 0);
+    mesh(new THREE.CapsuleGeometry(0.072, 0.1, 6, 16), clayMaterial, forearm, 0, -0.08, 0);
+    mesh(new THREE.SphereGeometry(0.105, 20, 16), mainMaterial, forearm, 0, -0.2, 0);
   };
   arm("L", -1);
   arm("R", 1);

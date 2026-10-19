@@ -1,9 +1,8 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, GATE_LOCAL, roomCenters, roomAt, columnAt, rowAt, columnToX, rowToZ } from "./layout.js";
-import { buildCharacterModel } from "./character-models.js";
+import { ROOM_SIZE, DOOR_ALONG, DOOR_ACROSS, SLOTS, SEATED_POSES, roomCenters, roomAt, columnAt, rowAt, columnToX, rowToZ } from "./layout.js";
+import { buildCharacterModel, buildMergeRequestModel } from "./character-models.js";
 
 const WALK_SPEED = 2.8;
 const STORM_SPEED_RATIO = 1.7;
@@ -11,6 +10,7 @@ const FUME_SECONDS = 0.9;
 const EXIT_INSIDE_DISTANCE = 1.4;
 const EXIT_OUTSIDE_DISTANCE = 1.8;
 const STORM_NOTE = "Conversation vidée : le robot quitte les bureaux en claquant la porte.";
+const MERGED_NOTE = "MR mergée : elle sort du bureau en claquant la porte.";
 const COMPACT_NOTE = "Conversation compactée : le robot se tasse le temps du résumé, puis reprend sa forme.";
 const COMPACT_SQUASH = 0.55;
 const COMPACT_STRETCH = 0.3;
@@ -41,12 +41,12 @@ const ROBOT_CLIPS = {
 };
 
 const MR_CLIPS = {
-  wave: "idle",
-  stand: "idle",
-  queue: "idle",
-  ready: "agree",
-  work: "idle",
-  walk: "walk",
+  wave: "Idle",
+  stand: "Idle",
+  queue: "Idle",
+  ready: "Yes",
+  work: "Idle",
+  walk: "Walking",
 };
 
 const ROBOT_EMOTES = ["Yes", "No", "ThumbsUp"];
@@ -62,15 +62,7 @@ const renderTag = (element, spec) => {
   else element.style.setProperty("--progress", `${Math.round(progress * 100)}%`);
 };
 
-const loadModel = (url) =>
-  new Promise((resolve, reject) => {
-    new GLTFLoader().load(url, resolve, undefined, reject);
-  });
-
-export const loadCharacterModels = async (characterId = "robot") => {
-  const mr = await loadModel("/models/Xbot.glb");
-  return { robot: buildCharacterModel(characterId), mr };
-};
+export const loadCharacterModels = async (characterId = "robot") => ({ robot: buildCharacterModel(characterId), mr: buildMergeRequestModel() });
 
 const wrapAngle = (angle) => {
   let wrapped = angle;
@@ -114,16 +106,6 @@ const slotPosition = (roomId, slotIndex) => {
 };
 
 export const createCharacters = ({ scene, models, exitDoor = null, onCompacted = null }) => {
-  const ghostMaterial = new THREE.MeshStandardMaterial({
-    color: 0x86b0ff,
-    emissive: 0x2450b0,
-    emissiveIntensity: 0.7,
-    roughness: 0.4,
-    transparent: true,
-    opacity: 0.58,
-    depthWrite: false,
-  });
-
   const characters = {};
   let order = [];
   let pickables = [];
@@ -173,7 +155,6 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
         });
         node.material = Array.isArray(node.material) ? tinted : tinted[0];
       } else {
-        node.material = ghostMaterial;
         node.castShadow = false;
       }
     });
@@ -264,8 +245,8 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
       if (character.pose === "work" && character.room === "fix") return "Punch";
       return ROBOT_CLIPS[character.pose] ?? "Idle";
     }
-    if (character.room === "fix" && character.pose === "work") return "sad_pose";
-    return MR_CLIPS[character.pose] ?? "idle";
+    if (character.room === "fix" && character.pose === "work") return "Sad";
+    return MR_CLIPS[character.pose] ?? "Idle";
   };
 
   const playClip = (character, clipName, { once = false, timeScale = 1, fade = 0.3 } = {}) => {
@@ -349,22 +330,6 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     return { ok: true };
   };
 
-  const exitThroughGate = (key, note, removeWhenGone = false) => {
-    const character = characters[key];
-    if (!character) return { ok: false, reason: "Personnage inconnu." };
-    if (character.gone) return { ok: false, reason: `${character.spec.name} est déjà parti.` };
-    releaseSlots(character);
-    const gateX = roomCenters.mrg.x + GATE_LOCAL.x;
-    const gateZ = roomCenters.mrg.z + GATE_LOCAL.z;
-    character.path = [...buildRoute(character.root.position.x, character.root.position.z, gateX, gateZ + 1.2), { x: gateX, z: gateZ + 0.3 }];
-    character.exiting = true;
-    character.removeWhenGone = removeWhenGone;
-    character.note = note ?? "";
-    character.moved = true;
-    startWalking(character);
-    return { ok: true };
-  };
-
   const beginVanish = (character) => {
     releaseSlots(character);
     character.path = [];
@@ -381,30 +346,33 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     character.pose = "walk";
     character.root.position.y = 0;
     refreshLabelHeight(character);
-    playClip(character, "Storm", { fade: 0.2 });
+    if (character.storm?.happy) playClip(character, "Walking", { timeScale: 1.7, fade: 0.2 });
+    else playClip(character, "Storm", { fade: 0.2 });
   };
 
   const stormOut = (key, note) => {
     const character = characters[key];
     if (!character) return { ok: false, reason: "Personnage inconnu." };
     if (character.gone) return { ok: false, reason: `${character.spec.name} est déjà parti.` };
-    if (character.spec.kind !== "robot" || !exitDoor) {
+    if (!exitDoor) {
       beginVanish(character);
       return { ok: true };
     }
+    // Une MR mergée sort contente (elle danse un instant), une conversation vidée sort furieuse : toutes deux claquent la porte.
+    const happy = character.spec.kind !== "robot";
     releaseSlots(character);
     character.path = [];
     character.exiting = false;
     character.removeWhenGone = true;
     character.note = note ?? STORM_NOTE;
     character.moved = true;
-    character.storm = { fume: FUME_SECONDS };
+    character.storm = { fume: FUME_SECONDS, happy };
     character.pose = "stand";
     character.root.position.y = 0;
     refreshLabelHeight(character);
-    setBubble(character, "💢");
-    character.bubbleInner.classList.add("bubble--angry");
-    playClip(character, "Fume", { fade: 0.2 });
+    setBubble(character, happy ? "🎉" : "💢");
+    character.bubbleInner.classList.toggle("bubble--angry", !happy);
+    playClip(character, happy ? "Dance" : "Fume", { fade: 0.2 });
     return { ok: true };
   };
 
@@ -481,7 +449,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     if (character.exiting) {
       character.celebrate = CELEBRATE_SECONDS;
       character.root.rotation.y = Math.PI;
-      playClip(character, character.spec.kind === "robot" ? "Dance" : "agree", { fade: 0.2 });
+      playClip(character, "Dance", { fade: 0.2 });
       return;
     }
     settle(character, character.target.room, character.target.slot);
@@ -511,7 +479,7 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
         character.removeWhenGone = true;
         return;
       }
-      if (mergedKeys.includes(key)) exitThroughGate(key, "MR mergée : elle sort du bureau par le portique.", true);
+      if (mergedKeys.includes(key)) stormOut(key, MERGED_NOTE);
       else if (clearedKeys.includes(key)) stormOut(key, STORM_NOTE);
       else beginVanish(character);
     });
@@ -686,7 +654,6 @@ export const createCharacters = ({ scene, models, exitDoor = null, onCompacted =
     sync,
     clear,
     moveTo,
-    exitThroughGate,
     stormOut,
     update,
     setSelected,

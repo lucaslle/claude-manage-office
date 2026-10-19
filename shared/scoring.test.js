@@ -48,13 +48,13 @@ describe("advanceScore", () => {
   });
 
   it("récompense une réparation, une relecture et un brouillon terminé", () => {
-    const score = seeded([mergeRequest("m:1", "fix"), mergeRequest("m:2", "rev"), mergeRequest("m:3", "rev", { draft: true })]);
-    const result = advanceScore(score, { characters: [mergeRequest("m:1", "rev"), mergeRequest("m:2", "mrg"), mergeRequest("m:3", "rev")], now: T0 + 10 * MINUTE });
+    const score = seeded([mergeRequest("m:1", "fix"), mergeRequest("m:2", "rev"), mergeRequest("m:3", "draft", { draft: true })]);
+    const result = advanceScore(score, { characters: [mergeRequest("m:1", "rev"), mergeRequest("m:2", "rev", { ready: true }), mergeRequest("m:3", "rev")], now: T0 + 10 * MINUTE });
     assert.deepEqual(result.events.map((event) => event.type), ["repair", "review", "ready"]);
   });
 
   it("ne compte un merge qu'une seule fois", () => {
-    const score = seeded([mergeRequest("m:1", "mrg")]);
+    const score = seeded([mergeRequest("m:1", "rev", { ready: true })]);
     const first = advanceScore(score, { characters: [], merged: [{ key: "m:1", name: "repo !1" }], now: T0 + MINUTE });
     assert.equal(first.events[0].type, "merge");
     assert.equal(first.events[0].name, "repo !1");

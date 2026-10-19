@@ -19,6 +19,7 @@ import { formatAge } from "./format.js";
 import { createUsagePanel } from "./usage.js";
 import { createConnectorsPanel } from "./connectors.js";
 import { createHud } from "./hud.js";
+import { createProblemsPanel } from "./problems.js";
 import { createSessionModal } from "./session-modal.js";
 import { createEffects } from "./effects.js";
 import { createScorePanel, createScoreTracker } from "./score.js";
@@ -192,13 +193,21 @@ const connectorsPanel = createConnectorsPanel({
   selector: document.getElementById("connectors-selector"),
   chooseButton: document.getElementById("connectors-choose"),
 });
-const hud = createHud(document.getElementById("hud"), {
-  onPick: (key) => {
-    ui.select(key);
-    const state = crowd.describe(key);
-    if (state) sessionModal.open({ spec: state.spec, room: state.target ?? state.room });
+// Une MR qui n'a plus de place dans sa salle n'a pas de personnage : sa fiche s'ouvre quand même, d'après ses données.
+const pickCharacter = (key, spec) => {
+  ui.select(key);
+  const state = crowd.describe(key);
+  if (state) sessionModal.open({ spec: state.spec, room: state.target ?? state.room });
+  else if (spec) sessionModal.open({ spec, room: spec.room });
+};
+const chipsHud = createHud(document.getElementById("hud"), { onPick: pickCharacter });
+const problemsPanel = createProblemsPanel({ list: document.getElementById("problems-list"), filters: document.getElementById("problems-filters"), meta: document.getElementById("problems-meta"), onPick: pickCharacter });
+const hud = {
+  update: (specs) => {
+    chipsHud.update(specs);
+    problemsPanel.update(specs);
   },
-});
+};
 const effects = createEffects(scene);
 slamHandler = () => {
   const door = world.exitDoor;

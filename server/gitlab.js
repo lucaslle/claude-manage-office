@@ -1,5 +1,7 @@
 const PER_PAGE = 100;
 const REQUEST_TIMEOUT_MS = 15000;
+const PIPELINE_CACHE_MS = 3 * 60 * 1000;
+const MAX_PIPELINE_LOOKUPS = 30;
 
 const AFTER_PATTERN =
   /(?:dépend(?:ant)?e? de|depends on|à merger après|merger après|merge after|bloquée? par|blocked by)\s+(?:[^\s!,.;:()]+\s+){0,4}?([\w./-]*)\s?!(\d+)/gi;
@@ -27,6 +29,7 @@ const normalize = (raw) => {
     status: raw.detailed_merge_status ?? "unchecked",
     hasConflicts: Boolean(raw.has_conflicts),
     updatedAt: raw.updated_at,
+    pipeline: null,
     blockedBy: [],
   };
 };
@@ -56,9 +59,9 @@ export const attachDependencies = (mergeRequests) => {
   return mergeRequests;
 };
 
-export const createGitlabClient = ({ baseUrl, token }) => {
+export const createGitlabClient = ({ baseUrl, token, fetchImpl = fetch, now = Date.now }) => {
   const request = async (pathAndQuery) => {
-    const response = await fetch(`${baseUrl}/api/v4${pathAndQuery}`, {
+    const response = await fetchImpl(`${baseUrl}/api/v4${pathAndQuery}`, {
       headers: { "PRIVATE-TOKEN": token },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
@@ -77,7 +80,7 @@ export const createGitlabClient = ({ baseUrl, token }) => {
       request(`/merge_requests?reviewer_id=${userId}&${base}`),
     ]);
     const byId = new Map();
-    lists.flat().forEach((raw) => byId.set(raw.id, normalize(raw)));
+    lists.flat().filter((raw) => (raw.state ?? "opened") === "opened").forEach((raw) => byId.set(raw.id, normalize(raw)));
     return attachDependencies([...byId.values()]);
   };
 
@@ -86,5 +89,41 @@ export const createGitlabClient = ({ baseUrl, token }) => {
     return raw.state;
   };
 
-  return { fetchCurrentUser, fetchOpenMergeRequests, fetchMergeRequestState };
+  // Le dernier pipeline d'une MR et ses jobs en échec : c'est la cause à afficher quand la CI est rouge.
+  const fetchPipelineDetail = async (projectId, iid) => {
+    const pipelines = await request(`/projects/${projectId}/merge_requests/${iid}/pipelines?per_page=5`);
+    const latest = pipelines.reduce((best, pipeline) => (!best || pipeline.id > best.id ? pipeline : best), null);
+    if (!latest) return null;
+    const jobs = latest.status === "failed" ? await request(`/projects/${projectId}/pipelines/${latest.id}/jobs?scope[]=failed&per_page=${PER_PAGE}`) : [];
+    return { id: latest.id, status: latest.status, failedJobs: jobs.filter((job) => !job.allow_failure).map((job) => ({ name: job.name, stage: job.stage })) };
+  };
+
+  const pipelineCache = new Map();
+
+  // Lit le dernier pipeline de chaque MR (sauf celles en conflit, déjà à l'atelier), au plus une fois par MR et par PIPELINE_CACHE_MS tant qu'elle n'a pas changé.
+  const annotatePipelines = async (mergeRequests) => {
+    const candidates = mergeRequests.filter((mergeRequest) => !mergeRequest.draft && !mergeRequest.hasConflicts && mergeRequest.status !== "conflict").slice(0, MAX_PIPELINE_LOOKUPS);
+    const current = now();
+    await Promise.all(
+      candidates.map(async (mergeRequest) => {
+        const cached = pipelineCache.get(mergeRequest.key);
+        if (cached && cached.updatedAt === mergeRequest.updatedAt && current - cached.at < PIPELINE_CACHE_MS) {
+          mergeRequest.pipeline = cached.pipeline;
+          return;
+        }
+        try {
+          const pipeline = await fetchPipelineDetail(mergeRequest.projectId, mergeRequest.iid);
+          pipelineCache.set(mergeRequest.key, { updatedAt: mergeRequest.updatedAt, at: current, pipeline });
+          mergeRequest.pipeline = pipeline;
+        } catch {
+          mergeRequest.pipeline = cached?.pipeline ?? null;
+        }
+      }),
+    );
+    const openKeys = new Set(mergeRequests.map((mergeRequest) => mergeRequest.key));
+    [...pipelineCache.keys()].forEach((key) => openKeys.has(key) || pipelineCache.delete(key));
+    return mergeRequests;
+  };
+
+  return { fetchCurrentUser, fetchOpenMergeRequests, fetchMergeRequestState, annotatePipelines };
 };

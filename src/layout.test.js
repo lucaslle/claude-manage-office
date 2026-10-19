@@ -15,16 +15,16 @@ describe("plan du bâtiment", () => {
     });
   });
 
-  it("place la salle des bugs devant l'atelier, et la pause à côté de la salle de merge", () => {
+  it("place la salle des bugs devant l'atelier, la salle des brouillons à côté, puis la pause", () => {
     assert.equal(roomAt(0, 2), "bug");
     assert.equal(roomAt(0, 1), "fix");
-    assert.equal(roomAt(1, 2), "mrg");
+    assert.equal(roomAt(1, 2), "draft");
     assert.equal(roomAt(2, 2), "pause");
     assert.equal(roomAt(9, 9), null);
   });
 
-  it("n'a plus de salle des brouillons ni d'attente", () => {
-    ["draft", "wait"].forEach((roomId) => {
+  it("n'a plus de salle de merge ni d'attente", () => {
+    ["mrg", "wait"].forEach((roomId) => {
       assert.ok(!roomIds.includes(roomId));
       assert.equal(SLOTS[roomId], undefined);
     });

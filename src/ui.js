@@ -118,7 +118,9 @@ export const createUi = ({ crowd, demoSpecs, onOverflow, usagePanel, connectorsP
     },
     ready: (eventDefinition, spec) => {
       spec.draft = false;
+      spec.room = eventDefinition.room;
       spec.why = eventDefinition.note;
+      spec.action = ROOM_ACTIONS[eventDefinition.room];
       applyDemoSpecs();
     },
     exit: (eventDefinition, spec) => {

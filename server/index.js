@@ -143,7 +143,7 @@ const refreshGitlab = async () => {
       gitlabUserId = user.id;
       gitlabStatus.user = user.username;
     }
-    const next = await gitlab.fetchOpenMergeRequests(gitlabUserId);
+    const next = await gitlab.annotatePipelines(await gitlab.fetchOpenMergeRequests(gitlabUserId));
     await detectMerged(mergeRequests, next);
     mergeRequests = next;
     gitlabStatus.state = "ok";

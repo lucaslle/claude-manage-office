@@ -28,7 +28,7 @@ export const createHud = (container, { onPick = () => {} } = {}) => {
       button.type = "button";
       button.append(element("span", "hud__entry-name", spec.name), element("span", "hud__entry-title", spec.title ?? ""));
       button.addEventListener("click", () => {
-        onPick(spec.key);
+        onPick(spec.key, spec);
         close();
       });
       item.append(button);

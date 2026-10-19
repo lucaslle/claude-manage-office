@@ -100,7 +100,7 @@ const decor = ({ world, room, rooms, props: kit, animated, ROOM_SIZE, centerX, c
     box(group, 1.1, 0.05, 0.7, M.steel, 0, 0.025, 0, { shadow: false });
     for (let slot = 0; slot < 5; slot += 1) box(group, 0.9, 0.012, 0.06, M.black, 0, 0.056, -0.24 + slot * 0.12, { shadow: false });
   };
-  [["acc", -3.9, -2.4], ["open", 3.8, 4.3], ["rev", -3.4, 4.3], ["fix", 3.6, -0.6], ["bug", -3.4, -4.3], ["arch", -3.9, 4.3], ["meet", 3.8, -4.3], ["mrg", -3.8, -3.6], ["pause", -3.8, 4.3]].forEach(([roomId, ventX, ventZ]) => vent(room(roomId), ventX, ventZ, ventX > 0 ? 0.4 : -0.3));
+  [["acc", -3.9, -2.4], ["open", 3.8, 4.3], ["rev", -3.4, 4.3], ["fix", 3.6, -0.6], ["bug", -3.4, -4.3], ["arch", -3.9, 4.3], ["meet", 3.8, -4.3], ["draft", -3.8, -3.6], ["pause", -3.8, 4.3]].forEach(([roomId, ventX, ventZ]) => vent(room(roomId), ventX, ventZ, ventX > 0 ? 0.4 : -0.3));
 
   const bugRoom = room("bug");
   kit.crewmate?.(bugRoom, { x: -4.1, z: 2.6, ry: 0.7, color: 0xc51111, scale: 1, lying: true });
@@ -143,7 +143,7 @@ const FLOOR_COLORS = {
   acc: "#9aa5b4",
   open: "#8f9bab",
   rev: "#8794ab",
-  mrg: "#8fa396",
+  draft: "#a39f8c",
   pause: "#a39a8c",
   fix: "#8a8f98",
   arch: "#6c7480",

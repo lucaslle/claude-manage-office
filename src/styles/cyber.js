@@ -112,7 +112,7 @@ const FLOORS = {
   acc: "#1a1233",
   open: "#10172e",
   rev: "#161233",
-  mrg: "#0f2230",
+  draft: "#1f1a2b",
   pause: "#221420",
   fix: "#25101a",
   arch: "#121425",

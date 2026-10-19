@@ -3,7 +3,7 @@ const ROOM_ACTIONS = {
   open: "Aucune, Claude travaille.",
   bug: "Aucune, Claude corrige le bug.",
   rev: "Relire la MR.",
-  mrg: "Merger la MR.",
+  draft: "Finir le brouillon.",
   fix: "Corriger la CI, résoudre le conflit ou continuer la fonctionnalité.",
   arch: "Aucune.",
   pause: "Aucune, la conversation est terminée.",
@@ -29,20 +29,54 @@ const hashString = (text) => [...text].reduce((total, character) => (total * 31 
 
 const truncate = (text, maxLength) => (text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text);
 
+const MAX_LISTED_JOBS = 3;
+
+const failedJobsText = (jobs) => {
+  const names = jobs.slice(0, MAX_LISTED_JOBS).map((job) => job.name);
+  return jobs.length > MAX_LISTED_JOBS ? `${names.join(", ")} et ${jobs.length - MAX_LISTED_JOBS} autre${jobs.length - MAX_LISTED_JOBS > 1 ? "s" : ""}` : names.join(", ");
+};
+
+// Statuts GitLab qui bloquent le merge sans être un conflit ni une CI rouge : le texte dit quoi corriger.
+const OTHER_BLOCKERS = {
+  jira_association_missing: "Aucun ticket Jira n'est associé à la MR.",
+  locked_paths: "La MR touche des fichiers verrouillés par un autre auteur.",
+  security_policy_violations: "Une politique de sécurité bloque la MR.",
+  title_regex: "Le titre de la MR ne respecte pas le format exigé.",
+  commits_status: "Les messages de commit ne respectent pas les règles du projet.",
+  external_status_checks: "Un contrôle externe a échoué.",
+};
+
+// Un problème, c'est tout ce que l'auteur doit corriger lui-même : la MR va à l'atelier, avec la cause en clair.
+export const diagnoseMergeRequest = (mergeRequest) => {
+  if (mergeRequest.hasConflicts || mergeRequest.status === "conflict") {
+    return { code: "conflict", label: "Conflit", reason: "Conflit avec la branche cible.", action: "Rebaser la branche et résoudre le conflit." };
+  }
+  if (mergeRequest.status === "need_rebase") return { code: "rebase", label: "À rebaser", reason: "La branche doit être rebasée.", action: "Rebaser la branche sur la branche cible." };
+  // GitLab peut laisser merger une MR dont la CI est rouge : le pipeline lu compte autant que le statut de fusion.
+  if (mergeRequest.status === "ci_must_pass" || mergeRequest.status === "broken_status" || mergeRequest.pipeline?.status === "failed") {
+    const jobs = mergeRequest.pipeline?.failedJobs ?? [];
+    if (jobs.length > 0) return { code: "pipeline", label: "Pipeline en échec", reason: `Pipeline en échec : ${failedJobsText(jobs)}.`, action: `Corriger le job ${jobs[0].name}, puis relancer.` };
+    if (mergeRequest.pipeline?.status === "canceled") return { code: "pipeline", label: "Pipeline annulé", reason: "Le pipeline a été annulé.", action: "Relancer le pipeline." };
+    return { code: "pipeline", label: "Pipeline en échec", reason: "Le pipeline a échoué.", action: "Corriger le job en échec, puis relancer." };
+  }
+  if (mergeRequest.status === "requested_changes") return { code: "changes", label: "Modifications demandées", reason: "Des modifications ont été demandées.", action: "Appliquer les modifications demandées." };
+  if (mergeRequest.status === "discussions_not_resolved") return { code: "discussions", label: "Discussions ouvertes", reason: "Des fils de discussion restent ouverts.", action: "Répondre aux fils ouverts et les résoudre." };
+  if (OTHER_BLOCKERS[mergeRequest.status]) return { code: "blocked", label: "Blocage GitLab", reason: OTHER_BLOCKERS[mergeRequest.status], action: "Lever le blocage signalé par GitLab." };
+  return null;
+};
+
+// Un brouillon a sa propre salle, sans se soucier du pipeline ni des conflits : il n'est pas encore censé être propre.
 export const classifyMergeRequest = (mergeRequest, byKey) => {
-  if (mergeRequest.draft) return { room: "rev", reason: "MR marquée Draft : pas encore prête.", action: "Finir le brouillon." };
+  if (mergeRequest.draft) return { room: "draft", reason: "MR marquée Draft : elle reste en brouillon, quel que soit son pipeline.", action: "Finir le brouillon." };
+  const problem = diagnoseMergeRequest(mergeRequest);
+  if (problem) return { room: "fix", reason: problem.reason, action: problem.action, problem: { code: problem.code, label: problem.label } };
   const blockers = mergeRequest.blockedBy.map((key) => byKey.get(key)).filter(Boolean);
   if (blockers.length > 0) {
     const names = blockers.map((blocker) => `${blocker.repo} !${blocker.iid}`).join(", ");
     return { room: "rev", reason: `Dépend de ${names}, pas encore mergée.`, action: "Attendre le merge de la MR dont elle dépend." };
   }
-  if (mergeRequest.hasConflicts || mergeRequest.status === "conflict") return { room: "fix", reason: "Conflit avec la branche cible." };
-  if (mergeRequest.status === "need_rebase") return { room: "fix", reason: "La branche doit être rebasée." };
-  if (mergeRequest.status === "ci_must_pass" || mergeRequest.status === "broken_status") return { room: "fix", reason: "Le pipeline a échoué." };
-  if (mergeRequest.status === "mergeable") return { room: "mrg", reason: "Prête à merger : aucun blocage." };
+  if (mergeRequest.status === "mergeable") return { room: "rev", ready: true, reason: "Prête à merger : aucun blocage.", action: "Merger la MR." };
   if (mergeRequest.status === "ci_still_running") return { room: "rev", reason: "Pipeline en cours, à relire en attendant." };
-  if (mergeRequest.status === "discussions_not_resolved") return { room: "rev", reason: "Des fils de discussion restent ouverts." };
-  if (mergeRequest.status === "requested_changes") return { room: "rev", reason: "Des modifications ont été demandées." };
   if (mergeRequest.status === "not_approved") return { room: "rev", reason: "En attente d'approbation." };
   return { room: "rev", reason: "En attente de relecture." };
 };
@@ -152,6 +186,8 @@ export const buildCharacters = ({ sessions, mergeRequests, features = new Map(),
       action: sessionAction(session, room, feature),
       feature: feature ? { name: feature.name, done: feature.done, total: feature.total, clarifications: feature.clarifications } : undefined,
       url: linked?.url ?? "",
+      problem: classification?.problem && room === classification.room ? classification.problem : undefined,
+      ready: classification?.ready && room === classification.room ? true : undefined,
       tint: TINTS[hashString(session.sessionId) % TINTS.length],
       compacting: isCompacting(session, now),
       compactedAt: Number(session.compactedAt) || 0,
@@ -189,6 +225,8 @@ export const buildCharacters = ({ sessions, mergeRequests, features = new Map(),
       action: classification.action ?? ROOM_ACTIONS[classification.room],
       draft: Boolean(mergeRequest.draft),
       url: mergeRequest.url,
+      problem: classification.problem,
+      ready: classification.ready,
       tint: 0,
     });
   });
