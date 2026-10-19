@@ -5,8 +5,7 @@ import { fileURLToPath } from "node:url";
 
 export const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const readEnvFile = () => {
-  const filePath = path.join(rootDirectory, ".env");
+const parseEnvFile = (filePath) => {
   if (!fs.existsSync(filePath)) return {};
   return Object.fromEntries(
     fs
@@ -21,6 +20,12 @@ const readEnvFile = () => {
       }),
   );
 };
+
+// Le .env du projet prime ; ~/.claude/eddy-office/.env sert à tous les dossiers de travail (worktrees compris) sans recopier le jeton.
+const readEnvFile = () => ({
+  ...parseEnvFile(path.join(os.homedir(), ".claude", "eddy-office", ".env")),
+  ...parseEnvFile(path.join(rootDirectory, ".env")),
+});
 
 export const loadConfig = () => {
   const fileValues = readEnvFile();

@@ -11,6 +11,7 @@
     "build": "vite build",
     "start:prod": "vite build && node server/index.js --production",
     "test": "node --test \"server/*.test.js\" \"hooks/*.test.js\" \"shared/*.test.js\" \"src/*.test.js\"",
+    "gitlab": "node scripts/gitlab.mjs",
     "hooks:install": "node hooks/install.mjs",
     "hooks:remove": "node hooks/install.mjs --remove",
     "statusline:install": "node hooks/install.mjs --statusline"

@@ -68,6 +68,22 @@ Pour voir aussi vos merge requests GitLab, ouvrez `.env` (créé au premier lanc
 
 Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 
+### GitLab pour Claude (lecture seule)
+
+Le même jeton permet à une session Claude de consulter GitLab sans que vous ayez à le coller dans la conversation : `npm run gitlab -- aide` liste les commandes, toutes en lecture seule (requêtes GET, jeton `read_api`).
+
+| Commande | Résultat |
+|---|---|
+| `npm run gitlab -- moi` | L'utilisateur du jeton (vérifie que la connexion marche) |
+| `npm run gitlab -- mrs [created\|assigned\|review]` | Vos merge requests ouvertes |
+| `npm run gitlab -- mr <réf>` | Détail d'une MR : état, conflits, pipeline, relecteurs |
+| `npm run gitlab -- discussions <réf> [--all]` | Commentaires de relecture non résolus |
+| `npm run gitlab -- diff <réf> [--files] [--max-chars N]` | Fichiers et modifications |
+| `npm run gitlab -- jobs <réf>` | Jobs en échec du dernier pipeline |
+| `npm run gitlab -- log <projet> <job> [--lines N]` | Fin du journal d'un job |
+
+`<réf>` est l'URL de la MR, `groupe/projet!12` ou `groupe/projet 12`. Dans une session Claude, la commande `/gitlab` s'en sert pour répondre à une demande (« pourquoi le pipeline de !12 échoue ? »). Le jeton est lu dans `.env` ; pour un dossier de travail sans `.env` (un worktree, par exemple), mettez-le une fois dans `~/.claude/eddy-office/.env`, ou dans les variables d'environnement `GITLAB_URL` et `GITLAB_TOKEN`.
+
 ### Mode démo
 
 Pour essayer sans rien installer d'autre, `npm run demo` ouvre la scène sur http://localhost:5173 avec des données d'exemple et une douzaine de changements d'état à déclencher ou à regarder défiler. C'est aussi ce que vous voyez quand le serveur local n'est pas joignable.
