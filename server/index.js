@@ -8,7 +8,9 @@ import { loadConfig, rootDirectory } from "./config.js";
 import { buildCharacters } from "./model.js";
 import { readFeature } from "./speckit.js";
 import { detectWindowsSessionDirectories, detectWslSessionDirectories, readRecentlyEnded, readSessions } from "./sessions.js";
-import { readFreshestSnapshot } from "./snapshots.js";
+import { readFreshestSnapshot, readFreshestUsage } from "./snapshots.js";
+import { createUsageRefresher } from "./usage-cli.js";
+import { isLocalHost } from "./api.js";
 import { createScoreStore, scoreFilePath } from "./score-store.js";
 import { advanceScore, publicScore } from "../shared/scoring.js";
 
@@ -50,6 +52,16 @@ const sessionRoutes = createSessionRoutes({
   port: config.port,
   config,
   findSession: (sessionId) => sessions.find((record) => record.sessionId === sessionId) ?? library.findRecord(sessionId),
+});
+
+// Bouton « Actualiser » des limites : la CLI Claude Code lit /usage sans consommer de tokens.
+const refreshUsage = createUsageRefresher({
+  baseDirectory: path.dirname(config.sessionDirectories[0]),
+  readPrevious: () => usage,
+  onUsage: (next) => {
+    usage = next;
+    publish();
+  },
 });
 
 const readFeatures = () => new Map(sessions.map((session) => [session.sessionId, readFeature(session.cwd, session.branch)]).filter(([, feature]) => feature));
@@ -99,7 +111,7 @@ const publish = () => {
 const refreshSessions = () => {
   sessions = readSessions(sessionDirectories(), { maxAgeMs: hoursToMs(config.sessionMaxAgeHours) });
   cleared = readRecentlyEnded(sessionDirectories(), { reason: "clear", maxAgeMs: CLEARED_VISIBLE_MS });
-  usage = readFreshestSnapshot(sessionDirectories(), "usage.json");
+  usage = readFreshestUsage(sessionDirectories());
   connectors = readFreshestSnapshot(sessionDirectories(), "connectors.json");
   publish();
 };
@@ -159,6 +171,20 @@ const handleApi = async (request, response) => {
     clients.add(response);
     request.on("close", () => clients.delete(response));
     return undefined;
+  }
+  if (request.url.split("?")[0] === "/api/usage/refresh") {
+    if (!isLocalHost(request.headers.host, config.port)) {
+      response.writeHead(403);
+      response.end();
+      return undefined;
+    }
+    if (request.method !== "POST") {
+      response.writeHead(405);
+      response.end();
+      return undefined;
+    }
+    const result = await refreshUsage();
+    return sendJson(response, result.ok ? { ok: true } : { ok: false, reason: result.reason });
   }
   if (request.url.startsWith("/api/refresh") && request.method === "POST") {
     refreshGitlab();

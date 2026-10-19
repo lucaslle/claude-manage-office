@@ -186,7 +186,7 @@ const crowd = createCharacters({
   },
 });
 crowdRef = crowd;
-const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta") });
+const usagePanel = createUsagePanel({ body: document.getElementById("usage-body"), meta: document.getElementById("usage-meta"), refreshButton: document.getElementById("usage-refresh") });
 const connectorsPanel = createConnectorsPanel({
   body: document.getElementById("connectors-body"),
   selector: document.getElementById("connectors-selector"),
