@@ -97,7 +97,7 @@ export const createGitlabReader = ({ baseUrl, token, fetchImpl = fetch }) => {
   const get = async (pathAndQuery, { text = false } = {}) => {
     const response = await fetchImpl(`${baseUrl}/api/v4${pathAndQuery}`, { method: "GET", headers: { "PRIVATE-TOKEN": token }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     if (response.status === 401) throw new Error("jeton refusé (401)");
-    if (response.status === 403) throw new Error("droits insuffisants (403) : le jeton doit avoir la portée read_api");
+    if (response.status === 403) throw new Error("droits insuffisants (403) : le jeton doit avoir la portée read_api, ou les permissions de lecture de cette ressource s'il est à permissions fines");
     if (response.status === 404) throw new Error("introuvable (404) : vérifiez le projet, le numéro et les droits du jeton");
     if (!response.ok) throw new Error(`réponse ${response.status}`);
     return text ? response.text() : response.json();

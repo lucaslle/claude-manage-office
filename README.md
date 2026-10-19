@@ -70,6 +70,8 @@ Le fichier `.env` n'est jamais commité. Le jeton ne quitte pas votre machine.
 
 ### GitLab pour Claude (lecture seule)
 
+Avec un jeton à permissions fines (GitLab récent), cochez en lecture seule les ressources Merge request, Note, Pipeline, Job et Project (onglet « Group and project »), le profil (onglet « User ») et Merge request (onglet « Global »), puis testez avec `npm run gitlab -- moi` et `npm run gitlab -- mrs`.
+
 Le même jeton permet à une session Claude de consulter GitLab sans que vous ayez à le coller dans la conversation : `npm run gitlab -- aide` liste les commandes, toutes en lecture seule (requêtes GET, jeton `read_api`).
 
 | Commande | Résultat |
