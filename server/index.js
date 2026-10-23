@@ -19,7 +19,7 @@ const WSL_REFRESH_MS = 300000;
 const KEEPALIVE_MS = 25000;
 const MERGED_VISIBLE_MS = 120000;
 const CLEARED_VISIBLE_MS = 120000;
-const MIME_TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".bin": "application/octet-stream", ".png": "image/png", ".json": "application/json" };
+const MIME_TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".bin": "application/octet-stream", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json" };
 
 const config = loadConfig();
 const production = process.env.NODE_ENV === "production" || process.argv.includes("--production");
